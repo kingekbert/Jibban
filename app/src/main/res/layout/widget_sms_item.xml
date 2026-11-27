@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_item_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="6dp"
+    android:background="@drawable/widget_item_background"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <!-- Top Row: Bank + Account & Amount + Type -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_item_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:text="برداشت"
+            android:textColor="@color/widget_expense_color"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_item_bank"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="بانک ملت"
+            android:textColor="@color/widget_title_color"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_item_amount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="۵۰,۰۰۰ تومان"
+            android:textColor="@color/widget_expense_color"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Middle Row: Date & Note snippet -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_item_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="امروز"
+            android:textColor="@color/widget_status_color"
+            android:textSize="10.5sp" />
+
+        <TextView
+            android:id="@+id/tv_item_note"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="خرید از فروشگاه"
+            android:textColor="@color/widget_subtitle_color"
+            android:textSize="10.5sp" />
+    </LinearLayout>
+
+    <!-- Bottom Action Section: 2 Rows of Buttons (9 Categories + 1 "Other") -->
+    <!-- Row 1: Categories 1 to 5 -->
+    <LinearLayout
+        android:id="@+id/widget_category_row_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btn_cat_1"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="1.5dp"
+            android:layout_marginEnd="1.5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_cat_btn_bg"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="دسته ۱"
+            android:textColor="@color/widget_cat_btn_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_cat_2"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="1.5dp"
+            android:layout_marginEnd="1.5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_cat_btn_bg"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="دسته ۲"
+            android:textColor="@color/widget_cat_btn_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_cat_3"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="1.5dp"
+            android:layout_marginEnd="1.5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_cat_btn_bg"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="دسته ۳"
+            android:textColor="@color/widget_cat_btn_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_cat_4"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="1.5dp"
+            android:layout_marginEnd="1.5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_cat_btn_bg"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="دسته ۴"
+            android:textColor="@color/widget_cat_btn_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_cat_5"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="1.5dp"
+            android:layout_marginEnd="1.5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_cat_btn_bg"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="دسته ۵"
+            android:textColor="@color/widget_cat_btn_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Row 2: Categories 6 to 9 + "سایر..." -->
+    <LinearLayout
+        android:id="@+id/widget_category_row_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3.5dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btn_cat_6"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="1.5dp"
+            android:layout_marginEnd="1.5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_cat_btn_bg"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="دسته ۶"
+            android:textColor="@color/widget_cat_btn_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_cat_7"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="1.5dp"
+            android:layout_marginEnd="1.5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_cat_btn_bg"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="دسته ۷"
+            android:textColor="@color/widget_cat_btn_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_cat_8"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="1.5dp"
+            android:layout_marginEnd="1.5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_cat_btn_bg"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="دسته ۸"
+            android:textColor="@color/widget_cat_btn_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_cat_9"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="1.5dp"
+            android:layout_marginEnd="1.5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_cat_btn_bg"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="دسته ۹"
+            android:textColor="@color/widget_cat_btn_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <!-- Always Present: "سایر..." Button -->
+        <TextView
+            android:id="@+id/btn_fav_more"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="1.5dp"
+            android:layout_marginEnd="1.5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_cat_more_btn_bg"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="سایر..."
+            android:textColor="@color/widget_cat_more_btn_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</LinearLayout>
