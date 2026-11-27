@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,10 +25,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pattern
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -76,6 +79,7 @@ fun AccountsScreen(
     val accounts by viewModel.accountsWithBalance.collectAsStateWithLifecycle()
     val patterns by viewModel.allPatterns.collectAsStateWithLifecycle()
     var accountToDelete by remember { mutableStateOf<AccountEntity?>(null) }
+    var isReorderMode by remember { mutableStateOf(false) }
 
     if (accountToDelete != null) {
         AlertDialog(
@@ -112,6 +116,22 @@ fun AccountsScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "بازگشت"
                         )
+                    }
+                },
+                actions = {
+                    if (accounts.size > 1) {
+                        TextButton(onClick = { isReorderMode = !isReorderMode }) {
+                            Icon(
+                                imageVector = if (isReorderMode) Icons.Default.Check else Icons.Default.SwapVert,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isReorderMode) "انجام شد" else "مرتب‌سازی",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             )
@@ -166,11 +186,12 @@ fun AccountsScreen(
                         AccountListItem(
                             accountWithBalance = item,
                             hasPattern = hasPattern,
+                            isReorderMode = isReorderMode,
                             canMoveUp = index > 0,
                             canMoveDown = index < accounts.size - 1,
                             onMoveUp = { viewModel.moveAccountUp(item) },
                             onMoveDown = { viewModel.moveAccountDown(item) },
-                            onClick = { onNavigateToAccountDetails(item.account.id) },
+                            onClick = { if (!isReorderMode) onNavigateToAccountDetails(item.account.id) },
                             onEdit = { onNavigateToEditAccount(item.account.id) },
                             onDelete = { accountToDelete = item.account },
                             onPatternClick = {
@@ -189,6 +210,7 @@ fun AccountsScreen(
 fun AccountListItem(
     accountWithBalance: AccountWithBalance,
     hasPattern: Boolean = false,
+    isReorderMode: Boolean = false,
     canMoveUp: Boolean = false,
     canMoveDown: Boolean = false,
     onMoveUp: () -> Unit = {},
@@ -212,10 +234,10 @@ fun AccountListItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(84.dp)
+            .heightIn(min = 84.dp)
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = { showMenu = true }
+                onLongClick = { if (!isReorderMode) showMenu = true }
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
@@ -225,42 +247,10 @@ fun AccountListItem(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Sort buttons (Up / Down)
-            Column(
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                IconButton(
-                    onClick = onMoveUp,
-                    enabled = canMoveUp,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowUpward,
-                        contentDescription = "انتقال به بالا",
-                        modifier = Modifier.size(16.dp),
-                        tint = if (canMoveUp) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                    )
-                }
-                IconButton(
-                    onClick = onMoveDown,
-                    enabled = canMoveDown,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowDownward,
-                        contentDescription = "انتقال به پایین",
-                        modifier = Modifier.size(16.dp),
-                        tint = if (canMoveDown) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
 
             BankLogoBadge(
                 bankId = account.logoResName,
@@ -332,38 +322,63 @@ fun AccountListItem(
                 )
             }
 
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(imageVector = Icons.Default.MoreVert, contentDescription = "عملیات")
+            if (isReorderMode) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onMoveUp,
+                        enabled = canMoveUp
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowUpward,
+                            contentDescription = "انتقال به بالا",
+                            tint = if (canMoveUp) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                        )
+                    }
+                    IconButton(
+                        onClick = onMoveDown,
+                        enabled = canMoveDown
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDownward,
+                            contentDescription = "انتقال به پایین",
+                            tint = if (canMoveDown) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                        )
+                    }
                 }
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("ویرایش حساب") },
-                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = "ویرایش") },
-                        onClick = {
-                            showMenu = false
-                            onEdit()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("الگوی پیامک") },
-                        leadingIcon = { Icon(Icons.Default.Pattern, contentDescription = "الگوی پیامک") },
-                        onClick = {
-                            showMenu = false
-                            onPatternClick()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("حذف", color = MaterialTheme.colorScheme.error) },
-                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = "حذف", tint = MaterialTheme.colorScheme.error) },
-                        onClick = {
-                            showMenu = false
-                            onDelete()
-                        }
-                    )
+            } else {
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "عملیات")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("ویرایش حساب") },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = "ویرایش") },
+                            onClick = {
+                                showMenu = false
+                                onEdit()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("الگوی پیامک") },
+                            leadingIcon = { Icon(Icons.Default.Pattern, contentDescription = "الگوی پیامک") },
+                            onClick = {
+                                showMenu = false
+                                onPatternClick()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("حذف", color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = "حذف", tint = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                showMenu = false
+                                onDelete()
+                            }
+                        )
+                    }
                 }
             }
         }

@@ -26,26 +26,47 @@ data class AddChequeUiState(
     val selectedAccountId: Long? = null,
     val note: String = "",
     val accounts: List<AccountEntity> = emptyList(),
+    val isEditing: Boolean = false,
     val isSaved: Boolean = false,
     val errorMessage: String? = null
 )
 
 class AddChequeViewModel(
     private val chequeRepository: ChequeRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val editChequeId: Long? = null
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AddChequeUiState())
+    private val _uiState = MutableStateFlow(AddChequeUiState(isEditing = editChequeId != null))
     val uiState: StateFlow<AddChequeUiState> = _uiState.asStateFlow()
+    private var existingCheque: ChequeEntity? = null
 
     init {
         viewModelScope.launch {
             val accountsList = accountRepository.getAll().firstOrNull() ?: emptyList()
-            _uiState.update {
-                it.copy(
-                    accounts = accountsList,
-                    selectedAccountId = accountsList.firstOrNull()?.id
-                )
+            val loadedCheque = editChequeId?.let { chequeRepository.getById(it).firstOrNull() }
+            existingCheque = loadedCheque
+            _uiState.update { current ->
+                if (loadedCheque != null) {
+                    current.copy(
+                        accounts = accountsList,
+                        sayadNumber = loadedCheque.sayadNumber,
+                        type = loadedCheque.type,
+                        amount = loadedCheque.amount,
+                        dueDate = loadedCheque.dueDate,
+                        partyName = loadedCheque.partyName,
+                        bankName = loadedCheque.bankName,
+                        selectedAccountId = loadedCheque.accountId ?: accountsList.firstOrNull()?.id,
+                        note = loadedCheque.note.orEmpty(),
+                        isEditing = true
+                    )
+                } else {
+                    current.copy(
+                        accounts = accountsList,
+                        selectedAccountId = accountsList.firstOrNull()?.id,
+                        isEditing = false
+                    )
+                }
             }
         }
     }
@@ -75,30 +96,47 @@ class AddChequeViewModel(
         }
 
         viewModelScope.launch {
-            val cheque = ChequeEntity(
-                sayadNumber = state.sayadNumber.trim(),
-                type = state.type,
-                amount = state.amount,
-                dueDate = state.dueDate,
-                issueDate = System.currentTimeMillis(),
-                partyName = state.partyName.trim(),
-                bankName = state.bankName.trim(),
-                accountId = state.selectedAccountId,
-                status = ChequeStatus.PENDING,
-                note = state.note.ifBlank { null }
-            )
-            chequeRepository.insert(cheque)
+            val currentExisting = existingCheque
+            if (currentExisting != null) {
+                chequeRepository.update(
+                    currentExisting.copy(
+                        sayadNumber = state.sayadNumber.trim(),
+                        type = state.type,
+                        amount = state.amount,
+                        dueDate = state.dueDate,
+                        partyName = state.partyName.trim(),
+                        bankName = state.bankName.trim(),
+                        accountId = state.selectedAccountId,
+                        note = state.note.ifBlank { null }
+                    )
+                )
+            } else {
+                val cheque = ChequeEntity(
+                    sayadNumber = state.sayadNumber.trim(),
+                    type = state.type,
+                    amount = state.amount,
+                    dueDate = state.dueDate,
+                    issueDate = System.currentTimeMillis(),
+                    partyName = state.partyName.trim(),
+                    bankName = state.bankName.trim(),
+                    accountId = state.selectedAccountId,
+                    status = ChequeStatus.PENDING,
+                    note = state.note.ifBlank { null }
+                )
+                chequeRepository.insert(cheque)
+            }
             _uiState.update { it.copy(isSaved = true) }
         }
     }
 
     class Factory(
         private val chequeRepository: ChequeRepository,
-        private val accountRepository: AccountRepository
+        private val accountRepository: AccountRepository,
+        private val editChequeId: Long? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AddChequeViewModel(chequeRepository, accountRepository) as T
+            return AddChequeViewModel(chequeRepository, accountRepository, editChequeId) as T
         }
     }
 }

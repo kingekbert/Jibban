@@ -13,7 +13,9 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -37,11 +39,6 @@ internal val appBottomNavTabs = listOf(
         icon = Icons.Default.ReceiptLong
     ),
     BottomNavTab(
-        route = Screen.More.route,
-        label = "بیشتر",
-        icon = Icons.Default.GridView
-    ),
-    BottomNavTab(
         route = Screen.Reports.route,
         label = "گزارش‌ها",
         icon = Icons.Default.BarChart
@@ -50,6 +47,11 @@ internal val appBottomNavTabs = listOf(
         route = Screen.Plans.route,
         label = "برنامه‌ها",
         icon = Icons.Default.EventRepeat
+    ),
+    BottomNavTab(
+        route = Screen.More.route,
+        label = "بیشتر",
+        icon = Icons.Default.GridView
     )
 )
 
@@ -67,6 +69,7 @@ internal fun AppBottomNavigationBar(
         appBottomNavTabs.forEach { tab ->
             val isSelected = currentRoute == tab.route
             NavigationBarItem(
+                modifier = Modifier.testTag("bottom_nav_${tab.route}"),
                 selected = isSelected,
                 onClick = {
                     if (currentRoute != tab.route) {

@@ -1,5 +1,6 @@
 package com.example.ui.screens.transactions
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
@@ -43,6 +45,8 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.InputChip
@@ -86,6 +90,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
@@ -131,6 +136,11 @@ fun TransactionsScreen(
     var showFilterBottomSheet by remember { mutableStateOf(false) }
     var showSortBottomSheet by remember { mutableStateOf(false) }
     var showDatePickerBottomSheet by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = state.isFullscreen) {
+        viewModel.toggleFullscreen()
+    }
 
     LaunchedEffect(state.isFullscreen) {
         onToggleFullscreen(state.isFullscreen)
@@ -288,79 +298,110 @@ fun TransactionsScreen(
                     },
                     actions = {
                         IconButton(
-                            onClick = { viewModel.setSearchActive(!state.isSearchActive) }
+                            onClick = { viewModel.setSearchActive(!state.isSearchActive) },
+                            modifier = Modifier.testTag("transactions_search_button")
                         ) {
                             Icon(
                                 imageVector = if (state.isSearchActive) Icons.Default.Close else Icons.Default.Search,
                                 contentDescription = if (state.isSearchActive) "بستن جستجو" else "جستجو"
                             )
                         }
-                        BadgedBox(
-                            badge = {
-                                if (state.selectedDayTimestamp != null) {
-                                    Badge(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(8.dp)
+                        if (!state.isSearchActive) {
+                            BadgedBox(
+                                badge = {
+                                    if (state.selectedDayTimestamp != null) {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(8.dp)
+                                        )
+                                    }
+                                }
+                            ) {
+                                IconButton(
+                                    onClick = { showDatePickerBottomSheet = true },
+                                    modifier = Modifier.testTag("transactions_calendar_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.CalendarMonth,
+                                        contentDescription = "تقویم روزانه",
+                                        tint = if (state.selectedDayTimestamp != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
-                        ) {
-                            IconButton(
-                                onClick = { showDatePickerBottomSheet = true }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.CalendarMonth,
-                                    contentDescription = "تقویم روزانه",
-                                    tint = if (state.selectedDayTimestamp != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        BadgedBox(
-                            badge = {
-                                if (state.activeFilterCount > 0) {
-                                    Badge {
-                                        Text(state.activeFilterCount.toString().toPersianDigits())
+                            BadgedBox(
+                                badge = {
+                                    if (state.activeFilterCount > 0) {
+                                        Badge {
+                                            Text(state.activeFilterCount.toString().toPersianDigits())
+                                        }
                                     }
                                 }
+                            ) {
+                                IconButton(
+                                    onClick = { showFilterBottomSheet = true },
+                                    modifier = Modifier.testTag("transactions_filter_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Tune,
+                                        contentDescription = "فیلترها"
+                                    )
+                                }
                             }
-                        ) {
                             IconButton(
-                                onClick = { showFilterBottomSheet = true }
+                                onClick = { showSortBottomSheet = true },
+                                modifier = Modifier.testTag("transactions_sort_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Tune,
-                                    contentDescription = "فیلترها"
+                                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = "مرتب‌سازی",
+                                    tint = if (state.selectedSortOrder != TransactionSortOrder.DATE_DESC) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                        }
-                        IconButton(
-                            onClick = { showSortBottomSheet = true }
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = "مرتب‌سازی",
-                                tint = if (state.selectedSortOrder != TransactionSortOrder.DATE_DESC) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                val csv = viewModel.exportTransactionsCsv()
-                                CsvExporter.shareCsv(context, csv, "jeebban_transactions.csv")
+                            Box {
+                                IconButton(
+                                    onClick = { showOverflowMenu = true },
+                                    modifier = Modifier.testTag("transactions_overflow_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "گزینه‌های بیشتر"
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showOverflowMenu,
+                                    onDismissRequest = { showOverflowMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("خروجی اکسل (CSV)") },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.FileDownload,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            val csv = viewModel.exportTransactionsCsv()
+                                            CsvExporter.shareCsv(context, csv, "jeebban_transactions.csv")
+                                        },
+                                        modifier = Modifier.testTag("transactions_export_csv_item")
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("حالت تمام‌صفحه") },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Fullscreen,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            viewModel.toggleFullscreen()
+                                        },
+                                        modifier = Modifier.testTag("transactions_fullscreen_item")
+                                    )
+                                }
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FileDownload,
-                                contentDescription = "خروجی اکسل (CSV)",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(
-                            onClick = { viewModel.toggleFullscreen() }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Fullscreen,
-                                contentDescription = "تمام‌صفحه"
-                            )
                         }
                     }
                 )

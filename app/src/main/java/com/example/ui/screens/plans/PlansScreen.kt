@@ -46,8 +46,11 @@ fun PlansScreen(
     chequesViewModel: ChequesViewModel,
     savingsGoalsViewModel: SavingsGoalsViewModel,
     onNavigateToAddRecurring: () -> Unit,
+    onNavigateToEditRecurring: (Long) -> Unit = {},
     onNavigateToAddCheque: () -> Unit,
+    onNavigateToEditCheque: (Long) -> Unit = {},
     onNavigateToAddSavingsGoal: () -> Unit,
+    onNavigateToEditSavingsGoal: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -113,6 +116,7 @@ fun PlansScreen(
                         viewModel = recurringViewModel,
                         onNavigateBack = null,
                         onNavigateToAdd = onNavigateToAddRecurring,
+                        onNavigateToEdit = onNavigateToEditRecurring,
                         showTopBar = false,
                         modifier = Modifier
                             .weight(1f)
@@ -124,6 +128,7 @@ fun PlansScreen(
                         viewModel = chequesViewModel,
                         onNavigateBack = null,
                         onNavigateToAdd = onNavigateToAddCheque,
+                        onNavigateToEdit = onNavigateToEditCheque,
                         showTopBar = false,
                         modifier = Modifier
                             .weight(1f)
@@ -135,6 +140,7 @@ fun PlansScreen(
                         viewModel = savingsGoalsViewModel,
                         onNavigateBack = null,
                         onNavigateToAdd = onNavigateToAddSavingsGoal,
+                        onNavigateToEdit = onNavigateToEditSavingsGoal,
                         showTopBar = false,
                         modifier = Modifier
                             .weight(1f)

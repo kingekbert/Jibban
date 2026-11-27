@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -46,8 +47,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -56,7 +59,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -92,6 +97,7 @@ fun WidgetScanScreen(
     val savedHashes by sharedScanViewModel.savedHashes.collectAsStateWithLifecycle()
     val recentlySavedHash by sharedScanViewModel.recentlySavedSmsHash.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     var hasPermission by remember {
         mutableStateOf(
@@ -292,6 +298,20 @@ fun WidgetScanScreen(
                                     sharedScanViewModel.setPendingScanItem(item)
                                     ScanSmsDataHolder.selectedItem = item
                                     onNavigateToPreConfirm()
+                                },
+                                onIgnoreClick = {
+                                    viewModel.ignoreItem(context.applicationContext, item)
+                                    coroutineScope.launch {
+                                        snackbarHostState.currentSnackbarData?.dismiss()
+                                        val res = snackbarHostState.showSnackbar(
+                                            message = "پیامک نادیده گرفته شد",
+                                            actionLabel = "بازگردانی",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                        if (res == SnackbarResult.ActionPerformed) {
+                                            viewModel.restoreIgnoredItem(context.applicationContext, item)
+                                        }
+                                    }
                                 }
                             )
                         }
@@ -306,6 +326,7 @@ fun WidgetScanScreen(
 private fun WidgetScanItemCard(
     item: ScannedSmsItem,
     onRegisterClick: () -> Unit,
+    onIgnoreClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val parsed = item.parsedSms
@@ -404,9 +425,9 @@ private fun WidgetScanItemCard(
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
-                    val dateFormatted = DateFormatter.formatShort(item.date)
+                    val dateFormatted = DateFormatter.formatShort(parsed.date ?: item.date)
                     Text(
-                        text = "تاریخ پیامک",
+                        text = "تاریخ تراکنش",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -429,26 +450,53 @@ private fun WidgetScanItemCard(
                 )
             }
 
-            // Register Action Button (ثبت +)
-            Button(
-                onClick = onRegisterClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            // Actions Row: Ignore + Register
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "ثبت تراکنش",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                OutlinedButton(
+                    onClick = onIgnoreClick,
+                    modifier = Modifier
+                        .weight(0.42f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VisibilityOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "نادیده گرفتن",
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Button(
+                    onClick = onRegisterClick,
+                    modifier = Modifier
+                        .weight(0.58f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "ثبت تراکنش",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

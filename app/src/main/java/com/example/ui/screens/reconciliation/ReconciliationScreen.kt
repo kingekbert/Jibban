@@ -50,8 +50,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -61,7 +63,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,6 +76,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.local.entity.AccountBalanceAdjustmentEntity
 import com.example.data.local.entity.CategoryEntity
 import com.example.data.local.entity.CategoryType
 import com.example.data.local.entity.TransactionType
@@ -93,8 +98,11 @@ fun ReconciliationScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
     var showManualDialog by remember { mutableStateOf(false) }
     var showIsolatedTargetDialog by remember { mutableStateOf(false) }
+    var adjustmentToDelete by remember { mutableStateOf<AccountBalanceAdjustmentEntity?>(null) }
+    val hasSnapshot = state.latestSnapshot != null
 
     LaunchedEffect(state.userMessage) {
         state.userMessage?.let {
@@ -175,11 +183,23 @@ fun ReconciliationScreen(
                                 )
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = if (state.isSynced) IncomeColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.errorContainer
+                                    color = when {
+                                        !hasSnapshot -> MaterialTheme.colorScheme.primaryContainer
+                                        state.isSynced -> IncomeColor.copy(alpha = 0.15f)
+                                        else -> MaterialTheme.colorScheme.errorContainer
+                                    }
                                 ) {
                                     Text(
-                                        text = if (state.isSynced) "همخوان با بانک" else "دارای اختلاف",
-                                        color = if (state.isSynced) IncomeColor else MaterialTheme.colorScheme.error,
+                                        text = when {
+                                            !hasSnapshot -> "تراز دستی"
+                                            state.isSynced -> "همخوان با بانک"
+                                            else -> "دارای اختلاف"
+                                        },
+                                        color = when {
+                                            !hasSnapshot -> MaterialTheme.colorScheme.primary
+                                            state.isSynced -> IncomeColor
+                                            else -> MaterialTheme.colorScheme.error
+                                        },
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
@@ -188,7 +208,11 @@ fun ReconciliationScreen(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "تاریخ آخرین اسنپ‌شات پیامک: $snapDateStr",
+                                text = if (hasSnapshot) {
+                                    "تاریخ آخرین اسنپ‌شات پیامک: $snapDateStr"
+                                } else {
+                                    "بدون اسنپ‌شات پیامکی — تراز مستقیم ایزوله در دسترس است"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -196,159 +220,223 @@ fun ReconciliationScreen(
                     }
                 }
 
-                // Top Summary: Discrepancy, Bank Balance, App Balance (All strictly in Rials)
-                item {
-                    val absDiff = abs(state.diff)
-                    val diffColor = if (state.isSynced) IncomeColor else MaterialTheme.colorScheme.error
-                    val signedDiffHeadline = when {
-                        state.isSynced -> "۰ ریال (همخوان)"
-                        state.diff > 0L -> "+ ${AmountFormatter.format(absDiff)}"
-                        else -> "- ${AmountFormatter.format(absDiff)}"
-                    }
-                    val directionHint = when {
-                        state.diff > 0L -> "مانده بانک ${AmountFormatter.format(absDiff)} بیشتر از اپ است"
-                        state.diff < 0L -> "مانده اپ ${AmountFormatter.format(absDiff)} بیشتر از بانک است"
-                        else -> null
-                    }
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (state.isSynced) IncomeColor.copy(alpha = 0.08f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.5.dp,
-                            if (state.isSynced) IncomeColor.copy(alpha = 0.3f) else MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = if (state.isSynced) "اختلاف مانده" else "مبلغ اختلاف با بانک (ریال)",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = signedDiffHeadline,
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = diffColor
-                            )
-                            if (directionHint != null) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = directionHint,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = diffColor.copy(alpha = 0.9f),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceAround
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "مانده در پیامک بانک",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = AmountFormatter.format(state.bankBalance),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-
-                                Box(
-                                    modifier = Modifier
-                                        .height(36.dp)
-                                        .width(1.dp)
-                                        .background(MaterialTheme.colorScheme.outlineVariant)
-                                )
-
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "مانده محاسبه‌شده اپ",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = AmountFormatter.format(state.appBalance),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.secondary
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Synced Celebration Card
-                if (state.isSynced) {
+                // Top Summary: either Manual Reconciliation mode (no SMS snapshot) or Bank-vs-App comparison
+                if (!hasSnapshot) {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = IncomeColor.copy(alpha = 0.12f))
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.5.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                            )
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = IncomeColor,
-                                    modifier = Modifier.size(36.dp)
+                                Text(
+                                    text = "مانده فعلی محاسبه‌شده اپ (ریال)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Column {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = AmountFormatter.format(state.appBalance),
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "هنوز پیامک بانکی با مانده برای این حساب ثبت نشده است. با وارد کردن مانده واقعی حساب، اختلاف به‌صورت ایزوله و بدون اثر بر گزارش‌های هزینه و درآمد اصلاح می‌شود.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { showIsolatedTargetDialog = true },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("reconcile_manual_target_button"),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("تراز دستی موجودی با مانده واقعی بانک (ایزوله)", fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                TextButton(
+                                    onClick = { showManualDialog = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("ثبت تراکنش اصلاحی دستی (با اثر بر گزارش‌ها)")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    item {
+                        val absDiff = abs(state.diff)
+                        val diffColor = if (state.isSynced) IncomeColor else MaterialTheme.colorScheme.error
+                        val signedDiffHeadline = when {
+                            state.isSynced -> "۰ ریال (همخوان)"
+                            state.diff > 0L -> "+ ${AmountFormatter.format(absDiff)}"
+                            else -> "- ${AmountFormatter.format(absDiff)}"
+                        }
+                        val directionHint = when {
+                            state.diff > 0L -> "مانده بانک ${AmountFormatter.format(absDiff)} بیشتر از اپ است"
+                            state.diff < 0L -> "مانده اپ ${AmountFormatter.format(absDiff)} بیشتر از بانک است"
+                            else -> null
+                        }
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (state.isSynced) IncomeColor.copy(alpha = 0.08f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.5.dp,
+                                if (state.isSynced) IncomeColor.copy(alpha = 0.3f) else MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = if (state.isSynced) "اختلاف مانده" else "مبلغ اختلاف با بانک (ریال)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = signedDiffHeadline,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = diffColor
+                                )
+                                if (directionHint != null) {
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "مانده حساب با بانک کاملاً همخوان است",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = IncomeColor
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = "تمام تراکنش‌های پیامک‌ها دقیقاً ثبت شده و هیچ مغایرتی وجود ندارد.",
+                                        text = directionHint,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = diffColor.copy(alpha = 0.9f),
+                                        textAlign = TextAlign.Center
                                     )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceAround
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = "مانده در پیامک بانک",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = AmountFormatter.format(state.bankBalance),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .height(36.dp)
+                                            .width(1.dp)
+                                            .background(MaterialTheme.colorScheme.outlineVariant)
+                                    )
+
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = "مانده محاسبه‌شده اپ",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = AmountFormatter.format(state.appBalance),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
-                    item {
-                        OutlinedButton(
-                            onClick = { showIsolatedTargetDialog = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("reconcile_manual_target_button"),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("تراز دستی موجودی با مانده واقعی بانک (بدون اثر بر گزارش‌ها)")
+                    // Synced Celebration Card
+                    if (state.isSynced) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = IncomeColor.copy(alpha = 0.12f))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = IncomeColor,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Column {
+                                        Text(
+                                            text = "مانده حساب با بانک کاملاً همخوان است",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = IncomeColor
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "تمام تراکنش‌های پیامک‌ها دقیقاً ثبت شده و هیچ مغایرتی وجود ندارد.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            OutlinedButton(
+                                onClick = { showIsolatedTargetDialog = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("reconcile_manual_target_button"),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("تراز دستی موجودی با مانده واقعی بانک (بدون اثر بر گزارش‌ها)")
+                            }
                         }
                     }
                 }
@@ -653,7 +741,7 @@ fun ReconciliationScreen(
                                     )
                                 }
                                 IconButton(
-                                    onClick = { viewModel.deleteBalanceAdjustment(adj.id) }
+                                    onClick = { adjustmentToDelete = adj }
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.DeleteOutline,
@@ -770,10 +858,51 @@ fun ReconciliationScreen(
         }
     }
 
+    // Delete Adjustment Confirmation Dialog + Undo Snackbar
+    adjustmentToDelete?.let { adj ->
+        val isPositive = adj.amount > 0L
+        val signedAmt = (if (isPositive) "+ " else "- ") + AmountFormatter.format(abs(adj.amount))
+        AlertDialog(
+            onDismissRequest = { adjustmentToDelete = null },
+            title = { Text("حذف تعدیل تراز مانده", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("آیا از حذف تعدیل ایزوله به مبلغ $signedAmt مطمئن هستید؟ موجودی حساب مجدداً محاسبه خواهد شد.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val deletedAdj = adj
+                        viewModel.deleteBalanceAdjustment(deletedAdj.id, showMessage = false)
+                        adjustmentToDelete = null
+                        coroutineScope.launch {
+                            snackbarHostState.currentSnackbarData?.dismiss()
+                            val result = snackbarHostState.showSnackbar(
+                                message = "تعدیل تراز مانده حذف شد",
+                                actionLabel = "بازگردانی",
+                                duration = SnackbarDuration.Short
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                viewModel.restoreBalanceAdjustment(deletedAdj)
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseColor)
+                ) {
+                    Text("حذف")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { adjustmentToDelete = null }) {
+                    Text("انصراف")
+                }
+            }
+        )
+    }
+
     // Isolated Target Bank Balance Reconciliation Dialog (No fake Expense/Income)
     if (showIsolatedTargetDialog) {
         var targetBankBalanceStr by remember {
-            mutableStateOf(if (state.bankBalance > 0L) state.bankBalance.toString() else "")
+            mutableStateOf(if (hasSnapshot && state.bankBalance > 0L) state.bankBalance.toString() else "")
         }
         var adjustmentNote by remember { mutableStateOf("تراز مستقیم با مانده واقعی بانک") }
         val parsedTarget = targetBankBalanceStr.toLongOrNull()

@@ -8,6 +8,7 @@ import com.example.data.repository.SavingsGoalRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -18,16 +19,42 @@ data class AddSavingsGoalUiState(
     val targetDate: Long? = null,
     val selectedColor: Int = -16738680, // #00897B
     val note: String = "",
+    val isEditing: Boolean = false,
     val isSaved: Boolean = false,
     val errorMessage: String? = null
 )
 
 class AddSavingsGoalViewModel(
-    private val savingsGoalRepository: SavingsGoalRepository
+    private val savingsGoalRepository: SavingsGoalRepository,
+    private val editGoalId: Long? = null
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AddSavingsGoalUiState())
+    private val _uiState = MutableStateFlow(AddSavingsGoalUiState(isEditing = editGoalId != null))
     val uiState: StateFlow<AddSavingsGoalUiState> = _uiState.asStateFlow()
+    private var existingGoal: SavingsGoalEntity? = null
+    private var existingCurrentAmount: Long = 0L
+
+    init {
+        if (editGoalId != null) {
+            viewModelScope.launch {
+                val loaded = savingsGoalRepository.getById(editGoalId).firstOrNull()
+                if (loaded != null) {
+                    existingGoal = loaded.goal
+                    existingCurrentAmount = loaded.currentAmount
+                    _uiState.update {
+                        it.copy(
+                            title = loaded.goal.title,
+                            targetAmount = loaded.goal.targetAmount,
+                            targetDate = loaded.goal.targetDate,
+                            selectedColor = loaded.goal.color,
+                            note = loaded.goal.note.orEmpty(),
+                            isEditing = true
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     fun setTitle(title: String) = _uiState.update { it.copy(title = title, errorMessage = null) }
     fun setTargetAmount(amount: Long) = _uiState.update { it.copy(targetAmount = amount, errorMessage = null) }
@@ -48,26 +75,41 @@ class AddSavingsGoalViewModel(
         }
 
         viewModelScope.launch {
-            val goal = SavingsGoalEntity(
-                title = state.title.trim(),
-                targetAmount = state.targetAmount,
-                targetDate = state.targetDate,
-                color = state.selectedColor,
-                icon = "Savings",
-                isCompleted = state.initialAmount >= state.targetAmount,
-                note = state.note.ifBlank { null }
-            )
-            savingsGoalRepository.insertGoal(goal, state.initialAmount)
+            val currentExisting = existingGoal
+            if (currentExisting != null) {
+                savingsGoalRepository.update(
+                    currentExisting.copy(
+                        title = state.title.trim(),
+                        targetAmount = state.targetAmount,
+                        targetDate = state.targetDate,
+                        color = state.selectedColor,
+                        isCompleted = existingCurrentAmount >= state.targetAmount,
+                        note = state.note.ifBlank { null }
+                    )
+                )
+            } else {
+                val goal = SavingsGoalEntity(
+                    title = state.title.trim(),
+                    targetAmount = state.targetAmount,
+                    targetDate = state.targetDate,
+                    color = state.selectedColor,
+                    icon = "Savings",
+                    isCompleted = state.initialAmount >= state.targetAmount,
+                    note = state.note.ifBlank { null }
+                )
+                savingsGoalRepository.insertGoal(goal, state.initialAmount)
+            }
             _uiState.update { it.copy(isSaved = true) }
         }
     }
 
     class Factory(
-        private val savingsGoalRepository: SavingsGoalRepository
+        private val savingsGoalRepository: SavingsGoalRepository,
+        private val editGoalId: Long? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AddSavingsGoalViewModel(savingsGoalRepository) as T
+            return AddSavingsGoalViewModel(savingsGoalRepository, editGoalId) as T
         }
     }
 }

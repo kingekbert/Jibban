@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Receipt
@@ -38,6 +40,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,8 +49,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -80,6 +81,7 @@ fun ChequesScreen(
     viewModel: ChequesViewModel,
     onNavigateBack: (() -> Unit)? = null,
     onNavigateToAdd: () -> Unit,
+    onNavigateToEdit: (Long) -> Unit = {},
     showTopBar: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -182,17 +184,17 @@ fun ChequesScreen(
                 }
             }
 
-            // Filter Tabs
-            TabRow(
-                selectedTabIndex = state.activeTab.ordinal,
-                containerColor = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.fillMaxWidth()
+            // Filter Chips (replaces nested TabRow)
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ChequeFilterTab.values().forEach { tab ->
-                    Tab(
+                items(ChequeFilterTab.values().toList(), key = { it.name }) { tab ->
+                    FilterChip(
                         selected = state.activeTab == tab,
                         onClick = { viewModel.selectTab(tab) },
-                        text = {
+                        label = {
                             Text(
                                 text = tab.title,
                                 fontWeight = if (state.activeTab == tab) FontWeight.Bold else FontWeight.Normal
@@ -238,6 +240,7 @@ fun ChequesScreen(
                         ChequeItemCard(
                             cheque = cheque,
                             onClearClicked = { chequeToClear = cheque },
+                            onEdit = { onNavigateToEdit(cheque.id) },
                             onStatusChange = { newStatus -> viewModel.updateStatus(cheque, newStatus) },
                             onDelete = { chequeToDelete = cheque }
                         )
@@ -290,6 +293,7 @@ fun ChequesScreen(
 fun ChequeItemCard(
     cheque: ChequeEntity,
     onClearClicked: () -> Unit,
+    onEdit: () -> Unit = {},
     onStatusChange: (ChequeStatus) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -344,7 +348,7 @@ fun ChequeItemCard(
                 }
 
                 Box {
-                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
+                    IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "گزینه‌ها")
                     }
 
@@ -353,6 +357,14 @@ fun ChequeItemCard(
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
+                            text = { Text("ویرایش چک") },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                onEdit()
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text("تنظیم به در انتظار") },
                             onClick = {
                                 onStatusChange(ChequeStatus.PENDING)
@@ -360,14 +372,14 @@ fun ChequeItemCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("تنظیم به برگشت خورده") },
+                            text = { Text("تنظیم به برگشت‌خورده") },
                             onClick = {
                                 onStatusChange(ChequeStatus.BOUNCED)
                                 showMenu = false
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("تنظیم به باطل شده") },
+                            text = { Text("تنظیم به باطل‌شده") },
                             onClick = {
                                 onStatusChange(ChequeStatus.CANCELLED)
                                 showMenu = false
@@ -375,6 +387,7 @@ fun ChequeItemCard(
                         )
                         DropdownMenuItem(
                             text = { Text("حذف چک", color = ExpenseColor) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = ExpenseColor) },
                             onClick = {
                                 onDelete()
                                 showMenu = false

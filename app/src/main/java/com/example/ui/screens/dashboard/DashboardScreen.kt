@@ -21,40 +21,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.ReceiptLong
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.RemoveCircle
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.animation.core.animateFloatAsState
@@ -65,6 +50,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -79,179 +65,23 @@ import com.example.ui.theme.IncomeColor
 import com.example.ui.theme.TransferColor
 import com.example.util.AmountFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     onNavigateToAddTransaction: (String) -> Unit,
     onNavigateToTransactions: () -> Unit,
     onNavigateToAccounts: () -> Unit,
-    onNavigateToCategories: () -> Unit = {},
-    onNavigateToDebts: () -> Unit = {},
-    onNavigateToReports: () -> Unit = {},
     onNavigateToScanSms: () -> Unit = {},
     onNavigateToImportSms: () -> Unit = {},
     onNavigateToTransfer: () -> Unit = {},
-    onNavigateToRecurring: () -> Unit = {},
-    onNavigateToSavingsGoals: () -> Unit = {},
-    onNavigateToCheques: () -> Unit = {},
-    onNavigateToPlans: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToAccountDetails: (Long) -> Unit = {},
+    onNavigateToEditTransaction: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val summary by viewModel.uiState.collectAsStateWithLifecycle()
     val recentTransactions = remember(summary.recentTransactions) {
         summary.recentTransactions.take(5)
-    }
-    var showMoreBottomSheet by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
-
-    if (showMoreBottomSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showMoreBottomSheet = false },
-            sheetState = sheetState
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    text = "سایر دسترسی‌ها",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                // Row 1: انتقال، حساب‌ها، دسته‌بندی‌ها، بدهی و طلب
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    QuickAccessItem(
-                        title = "انتقال",
-                        icon = Icons.Default.SwapHoriz,
-                        color = Color(0xFF1E88E5),
-                        onClick = {
-                            showMoreBottomSheet = false
-                            onNavigateToTransfer()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAccessItem(
-                        title = "حساب‌ها",
-                        icon = Icons.Default.AccountBalanceWallet,
-                        color = Color(0xFF1976D2),
-                        onClick = {
-                            showMoreBottomSheet = false
-                            onNavigateToAccounts()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAccessItem(
-                        title = "دسته‌بندی‌ها",
-                        icon = Icons.Default.Category,
-                        color = Color(0xFF8E24AA),
-                        onClick = {
-                            showMoreBottomSheet = false
-                            onNavigateToCategories()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAccessItem(
-                        title = "بدهی و طلب",
-                        icon = Icons.Default.ReceiptLong,
-                        color = Color(0xFFFB8C00),
-                        onClick = {
-                            showMoreBottomSheet = false
-                            onNavigateToDebts()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Row 2: اقساط و دوره‌ای، اهداف پس‌انداز، چک صیادی، برنامه‌ها
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    QuickAccessItem(
-                        title = "اقساط و دوره‌ای",
-                        icon = Icons.Default.Repeat,
-                        color = Color(0xFF0288D1),
-                        onClick = {
-                            showMoreBottomSheet = false
-                            onNavigateToRecurring()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAccessItem(
-                        title = "اهداف پس‌انداز",
-                        icon = Icons.Default.Savings,
-                        color = Color(0xFF00897B),
-                        onClick = {
-                            showMoreBottomSheet = false
-                            onNavigateToSavingsGoals()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAccessItem(
-                        title = "چک صیادی",
-                        icon = Icons.Default.ReceiptLong,
-                        color = Color(0xFF7B1FA2),
-                        onClick = {
-                            showMoreBottomSheet = false
-                            onNavigateToCheques()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAccessItem(
-                        title = "برنامه‌ها",
-                        icon = Icons.Default.EventNote,
-                        color = Color(0xFF00897B),
-                        onClick = {
-                            showMoreBottomSheet = false
-                            onNavigateToPlans()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Row 3: گزارش‌ها، تنظیمات
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    QuickAccessItem(
-                        title = "گزارش‌ها",
-                        icon = Icons.Default.BarChart,
-                        color = Color(0xFF388E3C),
-                        onClick = {
-                            showMoreBottomSheet = false
-                            onNavigateToReports()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAccessItem(
-                        title = "تنظیمات",
-                        icon = Icons.Default.Settings,
-                        color = Color(0xFF757575),
-                        onClick = {
-                            showMoreBottomSheet = false
-                            onNavigateToSettings()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-                Spacer(modifier = Modifier.height(28.dp))
-            }
-        }
     }
 
     LazyColumn(
@@ -272,7 +102,10 @@ fun DashboardScreen(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                IconButton(onClick = onNavigateToSettings) {
+                IconButton(
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier.testTag("dashboard_settings_button")
+                ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "تنظیمات",
@@ -310,7 +143,7 @@ fun DashboardScreen(
             }
         }
 
-        // Quick Access (دسترسی سریع) 4 Icons
+        // Quick Access (دسترسی سریع) 5 Direct Icons
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -333,7 +166,7 @@ fun DashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // 5 Icons: ثبت هزینه | ثبت درآمد | اسکن پیامک | ورود پیامک | سایر
+                    // 5 Direct Actions: ثبت هزینه | ثبت درآمد | انتقال | اسکن پیامک | ورود پیامک
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceAround
@@ -341,37 +174,47 @@ fun DashboardScreen(
                         QuickAccessItem(
                             title = "ثبت هزینه",
                             icon = Icons.Default.RemoveCircle,
-                            color = Color(0xFFE53935),
+                            color = ExpenseColor,
                             onClick = { onNavigateToAddTransaction("EXPENSE") },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("dashboard_quick_expense")
                         )
                         QuickAccessItem(
                             title = "ثبت درآمد",
                             icon = Icons.Default.AddCircle,
-                            color = Color(0xFF43A047),
+                            color = IncomeColor,
                             onClick = { onNavigateToAddTransaction("INCOME") },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("dashboard_quick_income")
+                        )
+                        QuickAccessItem(
+                            title = "انتقال",
+                            icon = Icons.Default.SwapHoriz,
+                            color = TransferColor,
+                            onClick = onNavigateToTransfer,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("dashboard_quick_transfer")
                         )
                         QuickAccessItem(
                             title = "اسکن پیامک",
                             icon = Icons.Default.Sms,
                             color = Color(0xFF00ACC1),
                             onClick = onNavigateToScanSms,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("dashboard_quick_scan_sms")
                         )
                         QuickAccessItem(
                             title = "ورود پیامک",
                             icon = Icons.Default.MailOutline,
                             color = Color(0xFFE91E63),
                             onClick = onNavigateToImportSms,
-                            modifier = Modifier.weight(1f)
-                        )
-                        QuickAccessItem(
-                            title = "سایر",
-                            icon = Icons.Default.MoreHoriz,
-                            color = Color(0xFF757575),
-                            onClick = { showMoreBottomSheet = true },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("dashboard_quick_import_sms")
                         )
                     }
                 }
@@ -407,7 +250,10 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(summary.accounts, key = { it.account.id }) { acc ->
-                            AccountCard(accountWithBalance = acc)
+                            AccountCard(
+                                accountWithBalance = acc,
+                                onClick = { onNavigateToAccountDetails(acc.account.id) }
+                            )
                         }
                     }
                 }
@@ -442,7 +288,10 @@ fun DashboardScreen(
             }
         } else {
             items(recentTransactions, key = { it.transaction.id }) { tx ->
-                TransactionCard(transactionWithDetails = tx)
+                TransactionCard(
+                    transactionWithDetails = tx,
+                    onClick = { onNavigateToEditTransaction(tx.transaction.id) }
+                )
             }
         }
     }

@@ -22,14 +22,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -41,6 +44,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -91,6 +95,7 @@ import com.example.util.NumberToWords
 fun GroupExpensesScreen(
     viewModel: GroupExpensesViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToAddGroupExpense: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -119,6 +124,19 @@ fun GroupExpensesScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onNavigateToAddGroupExpense,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White,
+                modifier = Modifier.testTag("group_expenses_add_fab")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "ثبت هزینه مشترک جدید"
+                )
+            }
+        },
         modifier = modifier
     ) { innerPadding ->
         Column(
@@ -163,12 +181,47 @@ fun GroupExpensesScreen(
                 )
             }
 
+            // Person / Expense Search Bar
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = { viewModel.setSearchQuery(it) },
+                placeholder = { Text("جستجوی نام شخص یا شرح هزینه...") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null
+                    )
+                },
+                trailingIcon = {
+                    if (state.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "پاک کردن جستجو"
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .testTag("group_expenses_search_input")
+            )
+
             if (state.selectedTab == 0) {
                 // Tab 0: صورت‌حساب هر شخص در هزینه‌های مشترک
                 if (state.personSummaries.isEmpty()) {
                     EmptyState(
-                        title = "تمام دنگ‌ها تسویه شده‌اند و هیچ بدهی بازی وجود ندارد",
+                        title = if (state.searchQuery.isNotBlank()) {
+                            "نتیجه‌ای برای «${state.searchQuery}» یافت نشد"
+                        } else {
+                            "تمام دنگ‌ها تسویه شده‌اند و هیچ بدهی بازی وجود ندارد"
+                        },
                         icon = Icons.Default.Groups,
+                        buttonText = if (state.searchQuery.isBlank()) "ثبت هزینه مشترک جدید" else null,
+                        onButtonClick = if (state.searchQuery.isBlank()) onNavigateToAddGroupExpense else null,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {

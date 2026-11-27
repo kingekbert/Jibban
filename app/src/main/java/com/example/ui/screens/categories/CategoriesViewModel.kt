@@ -27,6 +27,12 @@ class CategoriesViewModel(
         }
     }
 
+    fun restoreCategory(category: CategoryEntity) {
+        viewModelScope.launch {
+            categoryRepository.insertCategory(category.copy(id = 0L))
+        }
+    }
+
     fun toggleFavorite(category: CategoryEntity) {
         viewModelScope.launch {
             categoryRepository.toggleFavorite(category)

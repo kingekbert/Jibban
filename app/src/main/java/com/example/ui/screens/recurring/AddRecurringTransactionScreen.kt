@@ -66,6 +66,7 @@ fun AddRecurringTransactionScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showDatePicker by remember { mutableStateOf(false) }
     var accountDropdownExpanded by remember { mutableStateOf(false) }
+    var toAccountDropdownExpanded by remember { mutableStateOf(false) }
     var periodDropdownExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isSaved) {
@@ -88,7 +89,12 @@ fun AddRecurringTransactionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("تعریف تراکنش دوره‌ای / قسط", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = if (state.isEditing) "ویرایش تراکنش دوره‌ای / قسط" else "تعریف تراکنش دوره‌ای / قسط",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -161,7 +167,7 @@ fun AddRecurringTransactionScreen(
                     value = selectedAccount?.name ?: "انتخاب حساب...",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("حساب مبدأ / مرتبط") },
+                    label = { Text(if (state.type == TransactionType.TRANSFER) "حساب مبدأ" else "حساب مرتبط") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountDropdownExpanded) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -181,6 +187,51 @@ fun AddRecurringTransactionScreen(
                                 accountDropdownExpanded = false
                             }
                         )
+                    }
+                }
+            }
+
+            // Destination Account Selector (for Transfer)
+            if (state.type == TransactionType.TRANSFER) {
+                val destinationAccounts = state.accounts.filter { it.id != state.selectedAccountId }
+                if (destinationAccounts.isEmpty()) {
+                    Text(
+                        text = "برای تعریف انتقال دوره‌ای حداقل به دو حساب نیاز است.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                } else {
+                    ExposedDropdownMenuBox(
+                        expanded = toAccountDropdownExpanded,
+                        onExpandedChange = { toAccountDropdownExpanded = it }
+                    ) {
+                        val selectedToAccount = destinationAccounts.firstOrNull { it.id == state.selectedToAccountId }
+                        OutlinedTextField(
+                            value = selectedToAccount?.name ?: "انتخاب حساب مقصد...",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("حساب مقصد") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountDropdownExpanded) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = toAccountDropdownExpanded,
+                            onDismissRequest = { toAccountDropdownExpanded = false }
+                        ) {
+                            destinationAccounts.forEach { account ->
+                                DropdownMenuItem(
+                                    text = { Text(account.name) },
+                                    onClick = {
+                                        viewModel.setToAccount(account.id)
+                                        toAccountDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -250,7 +301,7 @@ fun AddRecurringTransactionScreen(
                 ) {
                     Column {
                         Text(
-                            text = "تاریخ اولین سررسید",
+                            text = if (state.isEditing) "تاریخ سررسید بعدی" else "تاریخ اولین سررسید",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -348,7 +399,10 @@ fun AddRecurringTransactionScreen(
             ) {
                 Icon(Icons.Default.Check, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("ذخیره و فعال‌سازی", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (state.isEditing) "ذخیره تغییرات" else "ذخیره و فعال‌سازی",
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

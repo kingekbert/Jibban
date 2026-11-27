@@ -40,6 +40,7 @@ class AddCategoryViewModel(
         )
     )
     val uiState: StateFlow<AddCategoryUiState> = _uiState.asStateFlow()
+    private var loadedCategory: CategoryEntity? = null
 
     init {
         if (editCategoryId != null && editCategoryId > 0) {
@@ -51,6 +52,7 @@ class AddCategoryViewModel(
         viewModelScope.launch {
             val category = categoryRepository.getCategoryById(id).firstOrNull()
             category?.let { cat ->
+                loadedCategory = cat
                 _uiState.value = _uiState.value.copy(
                     categoryId = cat.id,
                     name = cat.name,
@@ -95,16 +97,27 @@ class AddCategoryViewModel(
         viewModelScope.launch {
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
 
-            val category = CategoryEntity(
-                id = state.categoryId ?: 0L,
-                name = state.name.trim(),
-                type = state.type,
-                color = state.color,
-                icon = state.icon,
-                isDefault = state.isDefault,
-                monthlyBudget = if (state.type != CategoryType.INCOME) state.monthlyBudget.coerceAtLeast(0L) else 0L,
-                createdAt = System.currentTimeMillis()
-            )
+            val existing = loadedCategory
+            val category = if (existing != null && state.isEditing) {
+                existing.copy(
+                    name = state.name.trim(),
+                    type = state.type,
+                    color = state.color,
+                    icon = state.icon,
+                    monthlyBudget = if (state.type != CategoryType.INCOME) state.monthlyBudget.coerceAtLeast(0L) else 0L
+                )
+            } else {
+                CategoryEntity(
+                    id = state.categoryId ?: 0L,
+                    name = state.name.trim(),
+                    type = state.type,
+                    color = state.color,
+                    icon = state.icon,
+                    isDefault = state.isDefault,
+                    monthlyBudget = if (state.type != CategoryType.INCOME) state.monthlyBudget.coerceAtLeast(0L) else 0L,
+                    createdAt = System.currentTimeMillis()
+                )
+            }
 
             if (state.isEditing && state.categoryId != null) {
                 categoryRepository.updateCategory(category)
@@ -112,6 +125,15 @@ class AddCategoryViewModel(
                 categoryRepository.insertCategory(category)
             }
 
+            _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true)
+        }
+    }
+
+    fun deleteCategory() {
+        val existing = loadedCategory ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            categoryRepository.deleteCategory(existing)
             _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true)
         }
     }

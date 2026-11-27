@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,17 +49,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,6 +76,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.entity.ExtractedField
 import com.example.data.local.entity.FieldType
+import com.example.data.local.entity.SmsPatternEntity
 import com.example.ui.components.EmptyState
 import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
@@ -83,6 +91,9 @@ fun SmsPatternLearnerScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+    var patternToDelete by remember { mutableStateOf<SmsPatternEntity?>(null) }
 
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) {
@@ -111,6 +122,7 @@ fun SmsPatternLearnerScreen(
         modifier = modifier
     ) { innerPadding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
@@ -456,7 +468,10 @@ fun SmsPatternLearnerScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { viewModel.editPattern(pattern) },
+                                .clickable {
+                                    viewModel.editPattern(pattern)
+                                    coroutineScope.launch { listState.animateScrollToItem(0) }
+                                },
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = if (isCurrentlyEditing)
@@ -512,14 +527,19 @@ fun SmsPatternLearnerScreen(
                                     )
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(onClick = { viewModel.editPattern(pattern) }) {
+                                    IconButton(
+                                        onClick = {
+                                            viewModel.editPattern(pattern)
+                                            coroutineScope.launch { listState.animateScrollToItem(0) }
+                                        }
+                                    ) {
                                         Icon(
                                             imageVector = Icons.Default.Edit,
                                             contentDescription = "ویرایش",
                                             tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
-                                    IconButton(onClick = { viewModel.deletePattern(pattern.id) }) {
+                                    IconButton(onClick = { patternToDelete = pattern }) {
                                         Icon(
                                             imageVector = Icons.Default.Delete,
                                             contentDescription = "حذف",
@@ -533,6 +553,45 @@ fun SmsPatternLearnerScreen(
                 }
             }
         }
+    }
+
+    patternToDelete?.let { pattern ->
+        val patternTitle = pattern.bankName?.takeIf { it.isNotBlank() } ?: "بانک نامشخص"
+        AlertDialog(
+            onDismissRequest = { patternToDelete = null },
+            title = { Text("حذف الگوی پیامک", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("آیا از حذف الگوی پیامک «$patternTitle» مطمئن هستید؟")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val deletedPattern = pattern
+                        viewModel.deletePattern(deletedPattern.id)
+                        patternToDelete = null
+                        coroutineScope.launch {
+                            snackbarHostState.currentSnackbarData?.dismiss()
+                            val result = snackbarHostState.showSnackbar(
+                                message = "الگوی «$patternTitle» حذف شد",
+                                actionLabel = "بازگردانی",
+                                duration = SnackbarDuration.Short
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                viewModel.restorePattern(deletedPattern)
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseColor)
+                ) {
+                    Text("حذف")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { patternToDelete = null }) {
+                    Text("انصراف")
+                }
+            }
+        )
     }
 }
 

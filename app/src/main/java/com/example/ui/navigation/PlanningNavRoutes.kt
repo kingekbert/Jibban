@@ -3,7 +3,9 @@ package com.example.ui.navigation
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.example.FinTrackApp
 import com.example.ui.screens.cheques.AddChequeScreen
 import com.example.ui.screens.cheques.AddChequeViewModel
@@ -30,7 +32,9 @@ internal fun NavGraphBuilder.addPlanningRoutes(
     composable(Screen.Debts.route) {
         val viewModel: DebtsViewModel = viewModel(
             factory = DebtsViewModel.Factory(
-                debtRepository = app.appModule.debtRepository
+                debtRepository = app.appModule.debtRepository,
+                accountRepository = app.appModule.accountRepository,
+                transactionRepository = app.appModule.transactionRepository
             )
         )
         DebtsScreen(
@@ -49,7 +53,10 @@ internal fun NavGraphBuilder.addPlanningRoutes(
         )
         GroupExpensesScreen(
             viewModel = viewModel,
-            onNavigateBack = { navController.popBackStack() }
+            onNavigateBack = { navController.popBackStack() },
+            onNavigateToAddGroupExpense = {
+                navController.navigate(Screen.AddTransaction.createRoute("EXPENSE", groupExpense = true))
+            }
         )
     }
 
@@ -64,15 +71,27 @@ internal fun NavGraphBuilder.addPlanningRoutes(
         ChequesScreen(
             viewModel = viewModel,
             onNavigateBack = { navController.popBackStack() },
-            onNavigateToAdd = { navController.navigate(Screen.AddCheque.route) }
+            onNavigateToAdd = { navController.navigate(Screen.AddCheque.createRoute()) },
+            onNavigateToEdit = { chequeId -> navController.navigate(Screen.AddCheque.createRoute(chequeId)) }
         )
     }
 
-    composable(Screen.AddCheque.route) {
+    composable(
+        route = Screen.AddCheque.route,
+        arguments = listOf(
+            navArgument("chequeId") {
+                type = NavType.LongType
+                defaultValue = -1L
+            }
+        )
+    ) { backStackEntry ->
+        val argId = backStackEntry.arguments?.getLong("chequeId") ?: -1L
+        val chequeId = if (argId > 0L) argId else null
         val viewModel: AddChequeViewModel = viewModel(
             factory = AddChequeViewModel.Factory(
                 chequeRepository = app.appModule.chequeRepository,
-                accountRepository = app.appModule.accountRepository
+                accountRepository = app.appModule.accountRepository,
+                editChequeId = chequeId
             )
         )
         AddChequeScreen(
@@ -91,16 +110,28 @@ internal fun NavGraphBuilder.addPlanningRoutes(
         RecurringTransactionsScreen(
             viewModel = viewModel,
             onNavigateBack = { navController.popBackStack() },
-            onNavigateToAdd = { navController.navigate(Screen.AddRecurring.route) }
+            onNavigateToAdd = { navController.navigate(Screen.AddRecurring.createRoute()) },
+            onNavigateToEdit = { recurringId -> navController.navigate(Screen.AddRecurring.createRoute(recurringId)) }
         )
     }
 
-    composable(Screen.AddRecurring.route) {
+    composable(
+        route = Screen.AddRecurring.route,
+        arguments = listOf(
+            navArgument("recurringId") {
+                type = NavType.LongType
+                defaultValue = -1L
+            }
+        )
+    ) { backStackEntry ->
+        val argId = backStackEntry.arguments?.getLong("recurringId") ?: -1L
+        val recurringId = if (argId > 0L) argId else null
         val viewModel: AddRecurringTransactionViewModel = viewModel(
             factory = AddRecurringTransactionViewModel.Factory(
                 recurringRepository = app.appModule.recurringRepository,
                 accountRepository = app.appModule.accountRepository,
-                categoryRepository = app.appModule.categoryRepository
+                categoryRepository = app.appModule.categoryRepository,
+                editRecurringId = recurringId
             )
         )
         AddRecurringTransactionScreen(
@@ -120,14 +151,26 @@ internal fun NavGraphBuilder.addPlanningRoutes(
         SavingsGoalsScreen(
             viewModel = viewModel,
             onNavigateBack = { navController.popBackStack() },
-            onNavigateToAdd = { navController.navigate(Screen.AddSavingsGoal.route) }
+            onNavigateToAdd = { navController.navigate(Screen.AddSavingsGoal.createRoute()) },
+            onNavigateToEdit = { goalId -> navController.navigate(Screen.AddSavingsGoal.createRoute(goalId)) }
         )
     }
 
-    composable(Screen.AddSavingsGoal.route) {
+    composable(
+        route = Screen.AddSavingsGoal.route,
+        arguments = listOf(
+            navArgument("goalId") {
+                type = NavType.LongType
+                defaultValue = -1L
+            }
+        )
+    ) { backStackEntry ->
+        val argId = backStackEntry.arguments?.getLong("goalId") ?: -1L
+        val goalId = if (argId > 0L) argId else null
         val viewModel: AddSavingsGoalViewModel = viewModel(
             factory = AddSavingsGoalViewModel.Factory(
-                savingsGoalRepository = app.appModule.savingsGoalRepository
+                savingsGoalRepository = app.appModule.savingsGoalRepository,
+                editGoalId = goalId
             )
         )
         AddSavingsGoalScreen(
@@ -162,9 +205,12 @@ internal fun NavGraphBuilder.addPlanningRoutes(
             recurringViewModel = recurringViewModel,
             chequesViewModel = chequesViewModel,
             savingsGoalsViewModel = savingsGoalsViewModel,
-            onNavigateToAddRecurring = { navController.navigate(Screen.AddRecurring.route) },
-            onNavigateToAddCheque = { navController.navigate(Screen.AddCheque.route) },
-            onNavigateToAddSavingsGoal = { navController.navigate(Screen.AddSavingsGoal.route) }
+            onNavigateToAddRecurring = { navController.navigate(Screen.AddRecurring.createRoute()) },
+            onNavigateToEditRecurring = { recurringId -> navController.navigate(Screen.AddRecurring.createRoute(recurringId)) },
+            onNavigateToAddCheque = { navController.navigate(Screen.AddCheque.createRoute()) },
+            onNavigateToEditCheque = { chequeId -> navController.navigate(Screen.AddCheque.createRoute(chequeId)) },
+            onNavigateToAddSavingsGoal = { navController.navigate(Screen.AddSavingsGoal.createRoute()) },
+            onNavigateToEditSavingsGoal = { goalId -> navController.navigate(Screen.AddSavingsGoal.createRoute(goalId)) }
         )
     }
 }

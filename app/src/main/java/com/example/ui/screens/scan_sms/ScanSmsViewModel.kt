@@ -39,7 +39,8 @@ data class ScanSmsUiState(
     val detectedTransfers: List<com.example.util.DetectedTransfer> = emptyList(),
     val hasPermission: Boolean = false,
     val isScanCompleted: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val ignoredCount: Int = 0
 )
 
 class ScanSmsViewModel(
@@ -90,6 +91,7 @@ class ScanSmsViewModel(
                     val scannedResult = mutableListOf<ScannedSmsItem>()
                     val consumedManualTxIds = mutableSetOf<Long>()
                     val seenHashes = mutableSetOf<String>()
+                    val ignoredHashes = com.example.util.IgnoredSmsStore.getIgnoredHashes(context)
                     val balanceAtDateCache = mutableMapOf<Pair<Long, Long>, Long?>()
 
                     val uri = Uri.parse("content://sms/inbox")
@@ -155,8 +157,8 @@ class ScanSmsViewModel(
                                     accountIdentifier = effectiveAccountIdent
                                 )
 
-                                // Avoid duplicate within current scan list before consuming any manual match
-                                if (!seenHashes.add(hash)) continue
+                                // Avoid duplicate within current scan list or user-ignored SMS
+                                if (hash in ignoredHashes || !seenHashes.add(hash)) continue
 
                                 val legacyHashes = setOf(
                                     com.example.util.SmsHashUtil.calculateLegacyV1Hash(sender, amt, smsDate, body),
@@ -245,12 +247,14 @@ class ScanSmsViewModel(
                     Pair(sortedItems, sortedTransfers)
                 }
 
+                val ignoredCount = com.example.util.IgnoredSmsStore.count(context)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         scannedList = items.first,
                         detectedTransfers = items.second,
-                        isScanCompleted = true
+                        isScanCompleted = true,
+                        ignoredCount = ignoredCount
                     )
                 }
             } catch (e: Exception) {
@@ -290,6 +294,52 @@ class ScanSmsViewModel(
                 scannedList = sortScannedItems(updated),
                 detectedTransfers = sortDetectedTransfers(updatedTransfers)
             )
+        }
+    }
+
+    fun ignoreItem(context: Context, item: ScannedSmsItem) {
+        if (item.smsHash.isBlank()) return
+        com.example.util.IgnoredSmsStore.addIgnoredHash(context, item.smsHash)
+        runCatching {
+            com.example.widget.WidgetDataStore.removeItem(context, item.smsHash)
+            com.example.widget.WidgetStatusHelper.updateAllWidgets(context)
+        }
+        val newIgnoredCount = com.example.util.IgnoredSmsStore.count(context)
+        _uiState.update { state ->
+            val updatedList = state.scannedList.filterNot { it.smsHash == item.smsHash || it.id == item.id }
+            val updatedTransfers = state.detectedTransfers.filterNot {
+                it.withdrawalItem.smsHash == item.smsHash || it.depositItem.smsHash == item.smsHash
+            }
+            state.copy(
+                scannedList = updatedList,
+                detectedTransfers = updatedTransfers,
+                ignoredCount = newIgnoredCount
+            )
+        }
+    }
+
+    fun restoreIgnoredItem(context: Context, item: ScannedSmsItem) {
+        if (item.smsHash.isBlank()) return
+        com.example.util.IgnoredSmsStore.removeIgnoredHash(context, item.smsHash)
+        val newIgnoredCount = com.example.util.IgnoredSmsStore.count(context)
+        _uiState.update { state ->
+            val merged = if (state.scannedList.any { it.smsHash == item.smsHash }) {
+                state.scannedList
+            } else {
+                sortScannedItems(state.scannedList + item)
+            }
+            state.copy(
+                scannedList = merged,
+                ignoredCount = newIgnoredCount
+            )
+        }
+    }
+
+    fun clearIgnoredItems(context: Context) {
+        com.example.util.IgnoredSmsStore.clearAll(context)
+        _uiState.update { it.copy(ignoredCount = 0) }
+        if (_uiState.value.hasPermission) {
+            scanSms(context)
         }
     }
 

@@ -46,6 +46,8 @@ class EditTransactionViewModel(
     private val _uiState = MutableStateFlow(EditTransactionUiState(transactionId = transactionId))
     val uiState: StateFlow<EditTransactionUiState> = _uiState.asStateFlow()
 
+    private var loadedTransaction: TransactionEntity? = null
+
     init {
         loadData()
     }
@@ -60,6 +62,7 @@ class EditTransactionViewModel(
             val txWithDetails = transactionRepository.getTransactionByIdWithDetails(transactionId).firstOrNull()
             if (txWithDetails != null) {
                 val tx = txWithDetails.transaction
+                loadedTransaction = tx
                 val selectedAcc = accounts.find { it.id == tx.accountId }
                 val selectedToAcc = accounts.find { it.id == tx.toAccountId }
 
@@ -118,6 +121,18 @@ class EditTransactionViewModel(
         _uiState.value = _uiState.value.copy(selectedToAccount = account)
     }
 
+    fun swapTransferAccounts() {
+        val current = _uiState.value
+        val from = current.selectedAccount
+        val to = current.selectedToAccount
+        if (from == null && to == null) return
+        _uiState.value = current.copy(
+            selectedAccount = to,
+            selectedToAccount = from,
+            errorMessage = null
+        )
+    }
+
     fun setSelectedCategory(category: CategoryEntity) {
         _uiState.value = _uiState.value.copy(selectedCategory = category)
     }
@@ -142,6 +157,19 @@ class EditTransactionViewModel(
         _uiState.value = _uiState.value.copy(note = note)
     }
 
+    fun clearErrorMessage() {
+        _uiState.value = _uiState.value.copy(errorMessage = null)
+    }
+
+    fun deleteTransaction() {
+        val tx = loadedTransaction ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            transactionRepository.deleteTransaction(tx)
+            _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true)
+        }
+    }
+
     fun saveTransaction() {
         val state = _uiState.value
         if (state.amount <= 0L) {
@@ -149,7 +177,7 @@ class EditTransactionViewModel(
             return
         }
         if (state.selectedAccount == null) {
-            _uiState.value = state.copy(errorMessage = "لطفاً حساب مبدا را انتخاب کنید")
+            _uiState.value = state.copy(errorMessage = "لطفاً حساب مبدأ را انتخاب کنید")
             return
         }
         if (state.type == TransactionType.TRANSFER && state.selectedToAccount == null) {
@@ -157,7 +185,7 @@ class EditTransactionViewModel(
             return
         }
         if (state.type == TransactionType.TRANSFER && state.selectedAccount.id == state.selectedToAccount?.id) {
-            _uiState.value = state.copy(errorMessage = "حساب مبدا و مقصد نمی‌توانند یکسان باشند")
+            _uiState.value = state.copy(errorMessage = "حساب مبدأ و مقصد نمی‌توانند یکسان باشند")
             return
         }
         if (state.type != TransactionType.TRANSFER && state.selectedCategory == null) {
@@ -183,8 +211,9 @@ class EditTransactionViewModel(
                 categoryId = if (state.type != TransactionType.TRANSFER) state.selectedCategory?.id else null,
                 date = finalTimestamp,
                 note = state.note.ifBlank { null },
-                createdAt = System.currentTimeMillis(),
-                isBookmarked = state.isBookmarked
+                createdAt = loadedTransaction?.createdAt ?: System.currentTimeMillis(),
+                isBookmarked = state.isBookmarked,
+                smsHash = loadedTransaction?.smsHash
             )
 
             transactionRepository.updateTransaction(updatedTransaction)

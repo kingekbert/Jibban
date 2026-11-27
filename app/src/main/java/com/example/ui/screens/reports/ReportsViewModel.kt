@@ -60,6 +60,7 @@ data class ReportsUiState(
     val selectedAccountId: Long? = null,
     val selectedCategoryIds: Set<Long> = emptySet(),
     val selectedType: TransactionType? = null,
+    val chartType: TransactionType = TransactionType.EXPENSE,
     val isFullscreen: Boolean = false,
     val accounts: List<AccountEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
@@ -102,6 +103,7 @@ class ReportsViewModel(
     private val _customEndTimestamp = MutableStateFlow<Long?>(null)
     private val _selectedDayTimestamp = MutableStateFlow<Long?>(null)
     private val _isFullscreen = MutableStateFlow(false)
+    private val _chartType = MutableStateFlow(TransactionType.EXPENSE)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<ReportsUiState> = combine(
@@ -113,6 +115,7 @@ class ReportsViewModel(
         _customEndTimestamp,
         _isFullscreen,
         _selectedDayTimestamp,
+        _chartType,
         accountRepository.allAccounts,
         categoryRepository.allCategories,
         transactionRepository.allTransactionsWithDetails
@@ -127,12 +130,13 @@ class ReportsViewModel(
         val customEnd = flows[5] as Long?
         val isFullscreen = flows[6] as Boolean
         val selectedDay = flows[7] as Long?
+        val requestedChartType = flows[8] as TransactionType
         @Suppress("UNCHECKED_CAST")
-        val accountsList = flows[8] as List<AccountEntity>
+        val accountsList = flows[9] as List<AccountEntity>
         @Suppress("UNCHECKED_CAST")
-        val categoriesList = flows[9] as List<CategoryEntity>
+        val categoriesList = flows[10] as List<CategoryEntity>
         @Suppress("UNCHECKED_CAST")
-        val allTxWithDetails = flows[10] as List<TransactionWithDetails>
+        val allTxWithDetails = flows[11] as List<TransactionWithDetails>
 
         val zoneId = ZoneId.systemDefault()
         val todayJalali = JalaliDate.today(zoneId)
@@ -182,8 +186,12 @@ class ReportsViewModel(
         val categoryCountMap = mutableMapOf<Long, Int>()
 
         // Decide which transaction type to break down in the chart:
-        // If filterType is INCOME, break down income; otherwise break down expense
-        val chartType = if (filterType == TransactionType.INCOME) TransactionType.INCOME else TransactionType.EXPENSE
+        // Explicit filterType takes priority; otherwise honor quick chartType toggle
+        val chartType = when (filterType) {
+            TransactionType.INCOME -> TransactionType.INCOME
+            TransactionType.EXPENSE -> TransactionType.EXPENSE
+            else -> if (requestedChartType == TransactionType.INCOME) TransactionType.INCOME else TransactionType.EXPENSE
+        }
 
         inRange.forEach { item ->
             val tx = item.transaction
@@ -328,6 +336,7 @@ class ReportsViewModel(
             selectedAccountId = accountId,
             selectedCategoryIds = categoryIds,
             selectedType = filterType,
+            chartType = chartType,
             selectedDayTimestamp = selectedDay,
             isFullscreen = isFullscreen,
             accounts = accountsList,
@@ -375,6 +384,9 @@ class ReportsViewModel(
         _selectedAccountId.value = accountId
         _selectedCategoryIds.value = categoryIds
         _selectedType.value = type
+        if (type == TransactionType.INCOME || type == TransactionType.EXPENSE) {
+            _chartType.value = type
+        }
     }
 
     fun resetFilters() {
@@ -385,6 +397,21 @@ class ReportsViewModel(
         _selectedAccountId.value = null
         _selectedCategoryIds.value = emptySet()
         _selectedType.value = null
+        _chartType.value = TransactionType.EXPENSE
+    }
+
+    fun clearPeriodFilter() {
+        _selectedPeriod.value = DateFilterPeriod.ALL
+        _customStartTimestamp.value = null
+        _customEndTimestamp.value = null
+    }
+
+    fun setChartType(type: TransactionType) {
+        if (type != TransactionType.EXPENSE && type != TransactionType.INCOME) return
+        _chartType.value = type
+        if (_selectedType.value != null && _selectedType.value != type) {
+            _selectedType.value = type
+        }
     }
 
     fun setDayFilter(timestamp: Long) {
@@ -415,6 +442,9 @@ class ReportsViewModel(
 
     fun setReportType(type: TransactionType?) {
         _selectedType.value = type
+        if (type == TransactionType.INCOME || type == TransactionType.EXPENSE) {
+            _chartType.value = type
+        }
     }
 
     fun toggleFullscreen() {

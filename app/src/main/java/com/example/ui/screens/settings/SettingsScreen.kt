@@ -2,7 +2,6 @@ package com.example.ui.screens.settings
 
 import android.content.Context
 import android.content.ContextWrapper
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -21,12 +20,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pattern
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -61,23 +62,27 @@ import java.util.Locale
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    onNavigateBack: (() -> Unit)? = null,
     onNavigateToScanSms: () -> Unit = {},
     onNavigateToPatternLearner: ((Long?) -> Unit) = {},
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var showAccountSelectionDialog by remember { mutableStateOf(false) }
     var showRestoreOptionsDialog by remember { mutableStateOf(false) }
     var showPasteJsonDialog by remember { mutableStateOf(false) }
     var jsonInputText by remember { mutableStateOf("") }
     var showExportOptionsDialog by remember { mutableStateOf(false) }
-    var showPlainWarningDialog by remember { mutableStateOf(false) }
     var showPlainExportOptionsDialog by remember { mutableStateOf(false) }
+
+    val showMessage: (String) -> Unit = { message ->
+        coroutineScope.launch {
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     LaunchedEffect(state.userMessage) {
         state.userMessage?.let { msg ->
@@ -98,11 +103,11 @@ fun SettingsScreen(
                         outputStream.write(bytes)
                     }
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "فایل پشتیبان امن (.ftb) ذخیره شد", Toast.LENGTH_SHORT).show()
+                        snackbarHostState.showSnackbar("فایل پشتیبان امن (.ftb) ذخیره شد")
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "خطا در ذخیره فایل پشتیبان: ${e.message}", Toast.LENGTH_LONG).show()
+                        snackbarHostState.showSnackbar("خطا در ذخیره فایل پشتیبان: ${e.message}")
                     }
                 }
             }
@@ -121,11 +126,11 @@ fun SettingsScreen(
                         outputStream.write(jsonContent.toByteArray(Charsets.UTF_8))
                     }
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "فایل پشتیبان JSON در حافظه ذخیره شد", Toast.LENGTH_SHORT).show()
+                        snackbarHostState.showSnackbar("فایل پشتیبان JSON در حافظه ذخیره شد")
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "خطا در ذخیره فایل پشتیبان: ${e.message}", Toast.LENGTH_LONG).show()
+                        snackbarHostState.showSnackbar("خطا در ذخیره فایل پشتیبان: ${e.message}")
                     }
                 }
             }
@@ -143,12 +148,12 @@ fun SettingsScreen(
                         if (bytes != null && bytes.isNotEmpty()) {
                             viewModel.onBytesSelectedForRestore(bytes)
                         } else {
-                            Toast.makeText(context, "فایل انتخاب‌شده خالی است", Toast.LENGTH_SHORT).show()
+                            snackbarHostState.showSnackbar("فایل انتخاب‌شده خالی است")
                         }
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "خطا در خواندن فایل: ${e.message}", Toast.LENGTH_LONG).show()
+                        snackbarHostState.showSnackbar("خطا در خواندن فایل: ${e.message}")
                     }
                 }
             }
@@ -179,7 +184,17 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("تنظیمات", fontWeight = FontWeight.Bold) }
+                title = { Text("تنظیمات", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onNavigateBack != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "بازگشت"
+                            )
+                        }
+                    }
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -195,7 +210,7 @@ fun SettingsScreen(
             // SMS Patterns Card
             item {
                 Card(
-                    onClick = { showAccountSelectionDialog = true },
+                    onClick = { onNavigateToPatternLearner(null) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -280,7 +295,7 @@ fun SettingsScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "شناسایی خودکار پیامک‌های ۳۰ روز اخیر",
+                                    text = "شناسایی خودکار پیامک‌های بانکی و ثبت سریع",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -359,17 +374,6 @@ fun SettingsScreen(
         }
     }
 
-    if (showAccountSelectionDialog) {
-        PatternAccountSelectionDialog(
-            accounts = accounts,
-            onSelectAccount = { selectedAccountId ->
-                showAccountSelectionDialog = false
-                onNavigateToPatternLearner(selectedAccountId)
-            },
-            onDismiss = { showAccountSelectionDialog = false }
-        )
-    }
-
     if (showRestoreOptionsDialog) {
         RestoreOptionsDialog(
             onPickFile = {
@@ -388,20 +392,12 @@ fun SettingsScreen(
                                 android.content.Intent.createChooser(fallbackIntent, "انتخاب فایل پشتیبان")
                             )
                         } catch (e3: android.content.ActivityNotFoundException) {
-                            Toast.makeText(
-                                context,
-                                "برنامه مدیریت فایل یافت نشد. می‌توانید متن فایل را مستقیماً وارد کنید.",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            showMessage("برنامه مدیریت فایل یافت نشد. می‌توانید متن فایل را مستقیماً وارد کنید.")
                             showPasteJsonDialog = true
                         }
                     }
                 } catch (e: Exception) {
-                    Toast.makeText(
-                        context,
-                        "خطا در باز کردن انتخابگر فایل: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    showMessage("خطا در باز کردن انتخابگر فایل: ${e.message}")
                 }
             },
             onPasteText = {
@@ -423,7 +419,7 @@ fun SettingsScreen(
                     showPasteJsonDialog = false
                     viewModel.onTextSelectedForRestore(text)
                 } else {
-                    Toast.makeText(context, "لطفاً متن فایل پشتیبان را وارد کنید", Toast.LENGTH_SHORT).show()
+                    showMessage("لطفاً متن فایل پشتیبان را وارد کنید")
                 }
             },
             onDismiss = { showPasteJsonDialog = false }
@@ -438,7 +434,7 @@ fun SettingsScreen(
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
                     createFtbDocumentLauncher.launch("jeebban_backup_$timestamp.ftb")
                 } catch (e: Exception) {
-                    Toast.makeText(context, "خطا در باز کردن ذخیره‌ساز: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showMessage("خطا در باز کردن ذخیره‌ساز: ${e.message}")
                 }
             },
             onShareEncryptedBackup = {
@@ -455,25 +451,15 @@ fun SettingsScreen(
                         val shareIntent = android.content.Intent.createChooser(sendIntent, "اشتراک‌گذاری بک‌آپ امن (.ftb)")
                         context.startActivity(shareIntent)
                     } catch (e: Exception) {
-                        Toast.makeText(context, "خطا در اشتراک‌گذاری: ${e.message}", Toast.LENGTH_SHORT).show()
+                        snackbarHostState.showSnackbar("خطا در اشتراک‌گذاری: ${e.message}")
                     }
                 }
             },
             onSelectPortablePlain = {
                 showExportOptionsDialog = false
-                showPlainWarningDialog = true
-            },
-            onDismiss = { showExportOptionsDialog = false }
-        )
-    }
-
-    if (showPlainWarningDialog) {
-        PlainBackupSecurityWarningDialog(
-            onConfirm = {
-                showPlainWarningDialog = false
                 showPlainExportOptionsDialog = true
             },
-            onDismiss = { showPlainWarningDialog = false }
+            onDismiss = { showExportOptionsDialog = false }
         )
     }
 
@@ -486,7 +472,7 @@ fun SettingsScreen(
                     val defaultFileName = "jeebban_backup_$timestamp.json"
                     createJsonDocumentLauncher.launch(defaultFileName)
                 } catch (e: Exception) {
-                    Toast.makeText(context, "برنامه ذخیره فایل در دسترس نیست: ${e.message}", Toast.LENGTH_LONG).show()
+                    showMessage("برنامه ذخیره فایل در دسترس نیست: ${e.message}")
                 }
             },
             onCopyJsonToClipboard = {
@@ -497,9 +483,9 @@ fun SettingsScreen(
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
                         val clip = android.content.ClipData.newPlainText("JeebBan Portable Backup", json)
                         clipboard?.setPrimaryClip(clip)
-                        Toast.makeText(context, "متن پشتیبان با موفقیت در کلیپ‌بورد کپی شد", Toast.LENGTH_LONG).show()
+                        snackbarHostState.showSnackbar("متن پشتیبان با موفقیت در کلیپ‌بورد کپی شد")
                     } catch (e: Exception) {
-                        Toast.makeText(context, "خطا در کپی: ${e.message}", Toast.LENGTH_SHORT).show()
+                        snackbarHostState.showSnackbar("خطا در کپی: ${e.message}")
                     }
                 }
             },
@@ -516,7 +502,7 @@ fun SettingsScreen(
                         val shareIntent = android.content.Intent.createChooser(sendIntent, "اشتراک‌گذاری نسخه پشتیبان JSON")
                         context.startActivity(shareIntent)
                     } catch (e: Exception) {
-                        Toast.makeText(context, "خطا در اشتراک‌گذاری: ${e.message}", Toast.LENGTH_SHORT).show()
+                        snackbarHostState.showSnackbar("خطا در اشتراک‌گذاری: ${e.message}")
                     }
                 }
             },

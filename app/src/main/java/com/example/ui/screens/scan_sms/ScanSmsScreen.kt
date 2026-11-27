@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Pattern
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -52,8 +53,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -62,7 +65,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -101,6 +106,7 @@ fun ScanSmsScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
     var rawSmsDialogText by remember { mutableStateOf<String?>(null) }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -230,6 +236,23 @@ fun ScanSmsScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "بازگشت"
                         )
+                    }
+                },
+                actions = {
+                    if (state.ignoredCount > 0) {
+                        TextButton(
+                            onClick = {
+                                viewModel.clearIgnoredItems(context.applicationContext)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("پیامک‌های نادیده‌گرفته‌شده بازگردانی شدند")
+                                }
+                            }
+                        ) {
+                            Text(
+                                text = "مخفی‌شده (${state.ignoredCount.toPersianDigits()})",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
                     }
                 }
             )
@@ -557,6 +580,20 @@ fun ScanSmsScreen(
                                         Toast.makeText(context, "خطا در باز کردن صفحه", Toast.LENGTH_SHORT).show()
                                     }
                                 },
+                                onIgnoreClick = {
+                                    viewModel.ignoreItem(context.applicationContext, item)
+                                    coroutineScope.launch {
+                                        snackbarHostState.currentSnackbarData?.dismiss()
+                                        val res = snackbarHostState.showSnackbar(
+                                            message = "پیامک نادیده گرفته شد",
+                                            actionLabel = "بازگردانی",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                        if (res == SnackbarResult.ActionPerformed) {
+                                            viewModel.restoreIgnoredItem(context.applicationContext, item)
+                                        }
+                                    }
+                                },
                                 onLongClick = {
                                     rawSmsDialogText = item.rawText
                                 }
@@ -858,6 +895,7 @@ fun ScannedSmsCard(
     matchingTransfer: DetectedTransfer? = null,
     onReconcileClick: (accountId: Long) -> Unit = {},
     onAddClick: () -> Unit,
+    onIgnoreClick: (() -> Unit)? = null,
     onLongClick: () -> Unit = {}
 ) {
     val isDark = isSystemInDarkTheme()
@@ -1090,22 +1128,37 @@ fun ScannedSmsCard(
                     )
                 }
             } else {
-                IconButton(
-                    onClick = onAddClick,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onIgnoreClick != null) {
+                        IconButton(
+                            onClick = onIgnoreClick,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VisibilityOff,
+                                contentDescription = "نادیده گرفتن پیامک",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = onAddClick,
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "ثبت تراکنش",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "ثبت تراکنش",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }

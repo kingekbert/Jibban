@@ -32,6 +32,7 @@ data class AddRecurringUiState(
     val note: String = "",
     val accounts: List<AccountEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
+    val isEditing: Boolean = false,
     val isSaved: Boolean = false,
     val errorMessage: String? = null
 )
@@ -39,23 +40,48 @@ data class AddRecurringUiState(
 class AddRecurringTransactionViewModel(
     private val recurringRepository: RecurringRepository,
     private val accountRepository: AccountRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val editRecurringId: Long? = null
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AddRecurringUiState())
+    private val _uiState = MutableStateFlow(AddRecurringUiState(isEditing = editRecurringId != null))
     val uiState: StateFlow<AddRecurringUiState> = _uiState.asStateFlow()
+    private var existingRecurring: RecurringTransactionEntity? = null
 
     init {
         viewModelScope.launch {
             val accountsList = accountRepository.getAll().firstOrNull() ?: emptyList()
             val categoriesList = categoryRepository.getAll().firstOrNull() ?: emptyList()
-            _uiState.update {
-                it.copy(
-                    accounts = accountsList,
-                    categories = categoriesList,
-                    selectedAccountId = accountsList.firstOrNull()?.id,
-                    selectedCategoryId = categoriesList.firstOrNull { c -> c.type.name == it.type.name }?.id
-                )
+            val loaded = editRecurringId?.let { recurringRepository.getById(it).firstOrNull() }
+            existingRecurring = loaded
+            _uiState.update { current ->
+                if (loaded != null) {
+                    current.copy(
+                        title = loaded.title,
+                        type = loaded.type,
+                        amount = loaded.amount,
+                        selectedAccountId = loaded.accountId,
+                        selectedToAccountId = loaded.toAccountId ?: accountsList.firstOrNull { it.id != loaded.accountId }?.id,
+                        selectedCategoryId = loaded.categoryId,
+                        period = loaded.period,
+                        nextDueDate = loaded.nextDueDate,
+                        isInstallment = loaded.isInstallment,
+                        totalInstallments = (loaded.totalInstallments ?: 12).toString(),
+                        note = loaded.note.orEmpty(),
+                        accounts = accountsList,
+                        categories = categoriesList,
+                        isEditing = true
+                    )
+                } else {
+                    current.copy(
+                        accounts = accountsList,
+                        categories = categoriesList,
+                        selectedAccountId = accountsList.firstOrNull()?.id,
+                        selectedToAccountId = accountsList.getOrNull(1)?.id,
+                        selectedCategoryId = categoriesList.firstOrNull { c -> c.type.name == current.type.name }?.id,
+                        isEditing = false
+                    )
+                }
             }
         }
     }
@@ -65,11 +91,38 @@ class AddRecurringTransactionViewModel(
     fun setType(type: TransactionType) {
         _uiState.update { current ->
             val matchingCat = current.categories.firstOrNull { c -> c.type.name == type.name }?.id
-            current.copy(type = type, selectedCategoryId = matchingCat)
+            val resolvedToAccountId = if (type == TransactionType.TRANSFER) {
+                if (current.selectedToAccountId != null && current.selectedToAccountId != current.selectedAccountId) {
+                    current.selectedToAccountId
+                } else {
+                    current.accounts.firstOrNull { it.id != current.selectedAccountId }?.id
+                }
+            } else {
+                current.selectedToAccountId
+            }
+            current.copy(
+                type = type,
+                selectedCategoryId = matchingCat,
+                selectedToAccountId = resolvedToAccountId,
+                errorMessage = null
+            )
         }
     }
-    fun setAccount(accountId: Long) = _uiState.update { it.copy(selectedAccountId = accountId) }
-    fun setToAccount(accountId: Long) = _uiState.update { it.copy(selectedToAccountId = accountId) }
+    fun setAccount(accountId: Long) {
+        _uiState.update { current ->
+            val nextToAccountId = if (current.type == TransactionType.TRANSFER && current.selectedToAccountId == accountId) {
+                current.accounts.firstOrNull { it.id != accountId }?.id
+            } else {
+                current.selectedToAccountId
+            }
+            current.copy(
+                selectedAccountId = accountId,
+                selectedToAccountId = nextToAccountId,
+                errorMessage = null
+            )
+        }
+    }
+    fun setToAccount(accountId: Long) = _uiState.update { it.copy(selectedToAccountId = accountId, errorMessage = null) }
     fun setCategory(categoryId: Long?) = _uiState.update { it.copy(selectedCategoryId = categoryId) }
     fun setPeriod(period: RecurrencePeriod) = _uiState.update { it.copy(period = period) }
     fun setDueDate(timestamp: Long) = _uiState.update { it.copy(nextDueDate = timestamp) }
@@ -91,26 +144,55 @@ class AddRecurringTransactionViewModel(
             _uiState.update { it.copy(errorMessage = "لطفاً حساب مورد نظر را انتخاب کنید") }
             return
         }
+        if (state.type == TransactionType.TRANSFER) {
+            if (state.selectedToAccountId == null) {
+                _uiState.update { it.copy(errorMessage = "لطفاً حساب مقصد را انتخاب کنید") }
+                return
+            }
+            if (state.selectedToAccountId == state.selectedAccountId) {
+                _uiState.update { it.copy(errorMessage = "حساب مبدأ و مقصد نمی‌توانند یکسان باشند") }
+                return
+            }
+        }
         val totalInst = if (state.isInstallment) state.totalInstallments.toIntOrNull() ?: 12 else null
 
         viewModelScope.launch {
-            val entity = RecurringTransactionEntity(
-                title = state.title.trim(),
-                type = state.type,
-                amount = state.amount,
-                accountId = state.selectedAccountId,
-                toAccountId = if (state.type == TransactionType.TRANSFER) state.selectedToAccountId else null,
-                categoryId = if (state.type != TransactionType.TRANSFER) state.selectedCategoryId else null,
-                period = state.period,
-                startDate = System.currentTimeMillis(),
-                nextDueDate = state.nextDueDate,
-                isInstallment = state.isInstallment,
-                totalInstallments = totalInst,
-                paidInstallments = 0,
-                isActive = true,
-                note = state.note.ifBlank { null }
-            )
-            recurringRepository.insert(entity)
+            val currentExisting = existingRecurring
+            if (currentExisting != null) {
+                recurringRepository.update(
+                    currentExisting.copy(
+                        title = state.title.trim(),
+                        type = state.type,
+                        amount = state.amount,
+                        accountId = state.selectedAccountId,
+                        toAccountId = if (state.type == TransactionType.TRANSFER) state.selectedToAccountId else null,
+                        categoryId = if (state.type != TransactionType.TRANSFER) state.selectedCategoryId else null,
+                        period = state.period,
+                        nextDueDate = state.nextDueDate,
+                        isInstallment = state.isInstallment,
+                        totalInstallments = totalInst,
+                        note = state.note.ifBlank { null }
+                    )
+                )
+            } else {
+                val entity = RecurringTransactionEntity(
+                    title = state.title.trim(),
+                    type = state.type,
+                    amount = state.amount,
+                    accountId = state.selectedAccountId,
+                    toAccountId = if (state.type == TransactionType.TRANSFER) state.selectedToAccountId else null,
+                    categoryId = if (state.type != TransactionType.TRANSFER) state.selectedCategoryId else null,
+                    period = state.period,
+                    startDate = System.currentTimeMillis(),
+                    nextDueDate = state.nextDueDate,
+                    isInstallment = state.isInstallment,
+                    totalInstallments = totalInst,
+                    paidInstallments = 0,
+                    isActive = true,
+                    note = state.note.ifBlank { null }
+                )
+                recurringRepository.insert(entity)
+            }
             _uiState.update { it.copy(isSaved = true) }
         }
     }
@@ -118,11 +200,17 @@ class AddRecurringTransactionViewModel(
     class Factory(
         private val recurringRepository: RecurringRepository,
         private val accountRepository: AccountRepository,
-        private val categoryRepository: CategoryRepository
+        private val categoryRepository: CategoryRepository,
+        private val editRecurringId: Long? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AddRecurringTransactionViewModel(recurringRepository, accountRepository, categoryRepository) as T
+            return AddRecurringTransactionViewModel(
+                recurringRepository,
+                accountRepository,
+                categoryRepository,
+                editRecurringId
+            ) as T
         }
     }
 }

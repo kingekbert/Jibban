@@ -60,16 +60,20 @@ class AddTransactionViewModel(
     private val categoryRepository: CategoryRepository,
     private val settingsRepository: SettingsRepository,
     private val addTransactionUseCase: AddTransactionUseCase,
-    private val groupExpenseRepository: GroupExpenseRepository
+    private val groupExpenseRepository: GroupExpenseRepository,
+    initialGroupExpense: Boolean = false
 ) : ViewModel() {
+
+    private val initialType = when (initialTypeString) {
+        "INCOME" -> TransactionType.INCOME
+        "TRANSFER" -> TransactionType.TRANSFER
+        else -> TransactionType.EXPENSE
+    }
 
     private val _uiState = MutableStateFlow(
         AddTransactionUiState(
-            type = when (initialTypeString) {
-                "INCOME" -> TransactionType.INCOME
-                "TRANSFER" -> TransactionType.TRANSFER
-                else -> TransactionType.EXPENSE
-            }
+            type = initialType,
+            isGroupExpenseEnabled = initialGroupExpense && initialType == TransactionType.EXPENSE
         )
     )
     val uiState: StateFlow<AddTransactionUiState> = _uiState.asStateFlow()
@@ -481,17 +485,19 @@ class AddTransactionViewModel(
         private val categoryRepository: CategoryRepository,
         private val settingsRepository: SettingsRepository,
         private val addTransactionUseCase: AddTransactionUseCase,
-        private val groupExpenseRepository: GroupExpenseRepository
+        private val groupExpenseRepository: GroupExpenseRepository,
+        private val initialGroupExpense: Boolean = false
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return AddTransactionViewModel(
-                initialTypeString,
-                accountRepository,
-                categoryRepository,
-                settingsRepository,
-                addTransactionUseCase,
-                groupExpenseRepository
+                initialTypeString = initialTypeString,
+                accountRepository = accountRepository,
+                categoryRepository = categoryRepository,
+                settingsRepository = settingsRepository,
+                addTransactionUseCase = addTransactionUseCase,
+                groupExpenseRepository = groupExpenseRepository,
+                initialGroupExpense = initialGroupExpense
             ) as T
         }
     }

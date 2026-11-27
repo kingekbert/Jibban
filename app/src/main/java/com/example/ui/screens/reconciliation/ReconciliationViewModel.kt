@@ -280,20 +280,41 @@ class ReconciliationViewModel(
         }
     }
 
-    fun deleteBalanceAdjustment(adjustmentId: Long) {
+    fun deleteBalanceAdjustment(adjustmentId: Long, showMessage: Boolean = true) {
         viewModelScope.launch {
             try {
                 reconciliationRepository.deleteBalanceAdjustment(adjustmentId)
+                if (showMessage) {
+                    _uiState.update {
+                        it.copy(
+                            userMessage = "تعدیل تراز مانده حذف و موجودی مجدداً محاسبه شد.",
+                            isSuccessMessage = true
+                        )
+                    }
+                }
+                loadDiagnosis()
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(userMessage = "خطا در حذف تعدیل: ${e.localizedMessage}", isSuccessMessage = false)
+                }
+            }
+        }
+    }
+
+    fun restoreBalanceAdjustment(adjustment: AccountBalanceAdjustmentEntity) {
+        viewModelScope.launch {
+            try {
+                reconciliationRepository.restoreBalanceAdjustment(adjustment)
                 _uiState.update {
                     it.copy(
-                        userMessage = "تعدیل تراز مانده حذف و موجودی مجدداً محاسبه شد.",
+                        userMessage = "تعدیل تراز مانده بازگردانی شد و موجودی مجدداً محاسبه شد.",
                         isSuccessMessage = true
                     )
                 }
                 loadDiagnosis()
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(userMessage = "خطا در حذف تعدیل: ${e.localizedMessage}", isSuccessMessage = false)
+                    it.copy(userMessage = "خطا در بازگردانی تعدیل: ${e.localizedMessage}", isSuccessMessage = false)
                 }
             }
         }

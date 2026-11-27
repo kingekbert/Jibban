@@ -296,6 +296,12 @@ class SmsPatternLearnerViewModel(
         }
     }
 
+    fun restorePattern(pattern: SmsPatternEntity) {
+        viewModelScope.launch {
+            smsPatternRepository.insertPattern(pattern.copy(id = 0L))
+        }
+    }
+
     class Factory(
         private val smsPatternRepository: SmsPatternRepository,
         private val accountRepository: AccountRepository,

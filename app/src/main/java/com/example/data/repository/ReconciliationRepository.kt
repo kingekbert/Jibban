@@ -328,4 +328,8 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
         database.accountBalanceAdjustmentDao().deleteById(adjustmentId)
         true
     }
+
+    suspend fun restoreBalanceAdjustment(adjustment: AccountBalanceAdjustmentEntity): Long = withContext(Dispatchers.IO) {
+        database.accountBalanceAdjustmentDao().insert(adjustment.copy(id = 0L))
+    }
 }

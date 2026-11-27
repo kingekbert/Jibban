@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -49,6 +50,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -99,6 +101,7 @@ fun PreConfirmScreen(
     var showAccountPickerSheet by remember { mutableStateOf(false) }
     var showDestAccountPickerSheet by remember { mutableStateOf(false) }
     var showRawSmsDialog by remember { mutableStateOf(false) }
+    var showAllCategories by remember { mutableStateOf(false) }
     var newPersonName by remember { mutableStateOf("") }
 
     val (currentHour, currentMinute) = remember(state.dateTimestamp) {
@@ -352,6 +355,43 @@ fun PreConfirmScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            val canSave = !state.isSaving && !state.isSavedSuccess
+            Surface(
+                tonalElevation = 3.dp,
+                shadowElevation = 6.dp,
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.imePadding()
+            ) {
+                Button(
+                    onClick = { viewModel.quickSaveTransaction() },
+                    enabled = canSave,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .height(52.dp)
+                        .testTag("pre_confirm_save_button"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = when {
+                            state.isSaving -> "در حال ثبت..."
+                            state.transactionType == TransactionType.TRANSFER -> "تأیید و ثبت انتقال"
+                            else -> "تأیید و ثبت تراکنش"
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
@@ -785,16 +825,36 @@ fun PreConfirmScreen(
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = "دسته تراکنش",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "دسته تراکنش",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (state.categories.size > 8) {
+                                    TextButton(
+                                        onClick = { showAllCategories = !showAllCategories },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                        modifier = Modifier.testTag("pre_confirm_toggle_all_categories")
+                                    ) {
+                                        Text(
+                                            text = if (showAllCategories) "نمایش کمتر" else "همه دسته‌ها (${state.categories.size.toPersianDigits()})",
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                }
+                            }
 
                             CategoryPicker(
                                 categories = state.categories,
                                 selectedCategoryId = state.selectedCategoryId,
                                 onCategorySelected = { category -> viewModel.setSelectedCategory(category.id) },
+                                maxVisibleCount = if (showAllCategories) null else 8,
+                                prioritizeSelected = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -854,36 +914,8 @@ fun PreConfirmScreen(
                 }
             }
 
-            // 9. Single Primary Confirm & Save Action Button
             item {
-                val canSave = !state.isSaving && !state.isSavedSuccess
-                Button(
-                    onClick = { viewModel.quickSaveTransaction() },
-                    enabled = canSave,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                        .height(54.dp)
-                        .testTag("pre_confirm_save_button"),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = when {
-                            state.isSaving -> "در حال ثبت..."
-                            state.transactionType == TransactionType.TRANSFER -> "تأیید و ثبت انتقال"
-                            else -> "تأیید و ثبت تراکنش"
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }

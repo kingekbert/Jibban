@@ -21,8 +21,6 @@ import com.example.ui.screens.reports.ReportsScreen
 import com.example.ui.screens.reports.ReportsViewModel
 import com.example.ui.screens.transactions.TransactionsScreen
 import com.example.ui.screens.transactions.TransactionsViewModel
-import com.example.ui.screens.transfer.TransferScreen
-import com.example.ui.screens.transfer.TransferViewModel
 
 internal fun NavGraphBuilder.addCoreRoutes(
     app: FinTrackApp,
@@ -44,15 +42,6 @@ internal fun NavGraphBuilder.addCoreRoutes(
             onNavigateToAccounts = {
                 navController.navigate(Screen.Accounts.route)
             },
-            onNavigateToCategories = {
-                navController.navigate(Screen.Categories.route)
-            },
-            onNavigateToDebts = {
-                navController.navigate(Screen.Debts.route)
-            },
-            onNavigateToReports = {
-                navController.navigate(Screen.Reports.route)
-            },
             onNavigateToScanSms = {
                 navController.navigate(Screen.ScanSms.route)
             },
@@ -60,22 +49,16 @@ internal fun NavGraphBuilder.addCoreRoutes(
                 navController.navigate(Screen.ImportSms.route)
             },
             onNavigateToTransfer = {
-                navController.navigate(Screen.Transfer.route)
-            },
-            onNavigateToRecurring = {
-                navController.navigate(Screen.Recurring.route)
-            },
-            onNavigateToSavingsGoals = {
-                navController.navigate(Screen.SavingsGoals.route)
-            },
-            onNavigateToCheques = {
-                navController.navigate(Screen.Cheques.route)
-            },
-            onNavigateToPlans = {
-                navController.navigate(Screen.Plans.route)
+                navController.navigate(Screen.AddTransaction.createRoute("TRANSFER"))
             },
             onNavigateToSettings = {
                 navController.navigate(Screen.Settings.route)
+            },
+            onNavigateToAccountDetails = { accountId ->
+                navController.navigate(Screen.AccountDetails.createRoute(accountId))
+            },
+            onNavigateToEditTransaction = { transactionId ->
+                navController.navigate(Screen.EditTransaction.createRoute(transactionId))
             }
         )
     }
@@ -86,10 +69,15 @@ internal fun NavGraphBuilder.addCoreRoutes(
             navArgument("type") {
                 type = NavType.StringType
                 defaultValue = "EXPENSE"
+            },
+            navArgument("groupExpense") {
+                type = NavType.BoolType
+                defaultValue = false
             }
         )
     ) { backStackEntry ->
         val type = backStackEntry.arguments?.getString("type") ?: "EXPENSE"
+        val groupExpense = backStackEntry.arguments?.getBoolean("groupExpense") ?: false
         val viewModel: AddTransactionViewModel = viewModel(
             factory = AddTransactionViewModel.Factory(
                 initialTypeString = type,
@@ -97,7 +85,8 @@ internal fun NavGraphBuilder.addCoreRoutes(
                 categoryRepository = app.appModule.categoryRepository,
                 settingsRepository = app.appModule.settingsRepository,
                 addTransactionUseCase = app.appModule.addTransactionUseCase,
-                groupExpenseRepository = app.appModule.groupExpenseRepository
+                groupExpenseRepository = app.appModule.groupExpenseRepository,
+                initialGroupExpense = groupExpense
             )
         )
         AddTransactionScreen(
@@ -147,20 +136,6 @@ internal fun NavGraphBuilder.addCoreRoutes(
             )
         )
         EditTransactionScreen(
-            viewModel = viewModel,
-            onNavigateBack = { navController.popBackStack() }
-        )
-    }
-
-    composable(Screen.Transfer.route) {
-        val viewModel: TransferViewModel = viewModel(
-            factory = TransferViewModel.Factory(
-                accountRepository = app.appModule.accountRepository,
-                settingsRepository = app.appModule.settingsRepository,
-                addTransactionUseCase = app.appModule.addTransactionUseCase
-            )
-        )
-        TransferScreen(
             viewModel = viewModel,
             onNavigateBack = { navController.popBackStack() }
         )
@@ -239,9 +214,9 @@ internal fun NavGraphBuilder.addCoreRoutes(
             onNavigateToCategories = { navController.navigate(Screen.Categories.route) },
             onNavigateToDebts = { navController.navigate(Screen.Debts.route) },
             onNavigateToGroupExpenses = { navController.navigate(Screen.GroupExpenses.route) },
-            onNavigateToRecurring = { navController.navigate(Screen.Recurring.route) },
-            onNavigateToSavingsGoals = { navController.navigate(Screen.SavingsGoals.route) },
-            onNavigateToCheques = { navController.navigate(Screen.Cheques.route) },
+            onNavigateToScanSms = { navController.navigate(Screen.ScanSms.route) },
+            onNavigateToImportSms = { navController.navigate(Screen.ImportSms.route) },
+            onNavigateToPatternLearner = { navController.navigate(Screen.PatternLearner.createRoute()) },
             onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
         )
     }

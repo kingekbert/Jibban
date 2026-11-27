@@ -100,6 +100,9 @@ internal fun NavGraphBuilder.addManagementRoutes(
         AccountDetailScreen(
             viewModel = viewModel,
             onNavigateBack = { navController.popBackStack() },
+            onNavigateToEditAccount = { accId ->
+                navController.navigate(Screen.AddAccount.createRoute(accId))
+            },
             onNavigateToEditPattern = { accId, patId ->
                 navController.navigate(Screen.PatternLearner.createRoute(accountId = accId, patternId = patId))
             },
@@ -108,6 +111,9 @@ internal fun NavGraphBuilder.addManagementRoutes(
             },
             onNavigateToReconciliation = { accId ->
                 navController.navigate(Screen.Reconciliation.createRoute(accId))
+            },
+            onNavigateToEditTransaction = { transactionId ->
+                navController.navigate(Screen.EditTransaction.createRoute(transactionId))
             }
         )
     }
@@ -189,6 +195,7 @@ internal fun NavGraphBuilder.addManagementRoutes(
         )
         SettingsScreen(
             viewModel = viewModel,
+            onNavigateBack = { navController.popBackStack() },
             onNavigateToScanSms = {
                 navController.navigate(Screen.ScanSms.route)
             },

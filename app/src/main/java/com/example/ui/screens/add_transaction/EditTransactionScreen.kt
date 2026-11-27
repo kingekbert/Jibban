@@ -1,14 +1,16 @@
 package com.example.ui.screens.add_transaction
 
-import android.app.DatePickerDialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,43 +23,50 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.entity.TransactionType
 import com.example.ui.components.AmountInput
 import com.example.ui.components.CategoryPicker
+import com.example.ui.components.FinTrackTimePickerDialog
+import com.example.ui.components.JalaliDatePickerDialog
 import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
 import com.example.ui.theme.TransferColor
 import com.example.util.DateFormatter
-import java.util.Calendar
+import com.example.util.toPersianDigits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,12 +77,20 @@ fun EditTransactionScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showAllCategories by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
+    val activeColor = when (state.type) {
+        TransactionType.EXPENSE -> ExpenseColor
+        TransactionType.INCOME -> IncomeColor
+        TransactionType.TRANSFER -> TransferColor
+    }
 
     if (showDatePicker) {
-        com.example.ui.components.JalaliDatePickerDialog(
+        JalaliDatePickerDialog(
             initialTimestamp = state.dateTimestamp,
             onDismiss = { showDatePicker = false },
             onDateSelected = { timestamp ->
@@ -84,7 +101,7 @@ fun EditTransactionScreen(
     }
 
     if (showTimePicker) {
-        com.example.ui.components.FinTrackTimePickerDialog(
+        FinTrackTimePickerDialog(
             initialHour = state.selectedHour,
             initialMinute = state.selectedMinute,
             onTimeSelected = { hour, minute ->
@@ -92,6 +109,30 @@ fun EditTransactionScreen(
                 showTimePicker = false
             },
             onDismiss = { showTimePicker = false }
+        )
+    }
+
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = { Text("حذف تراکنش", fontWeight = FontWeight.Bold) },
+            text = { Text("آیا از حذف این تراکنش مطمئن هستید؟ موجودی حساب مرتبط به‌صورت خودکار اصلاح می‌شود.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        viewModel.deleteTransaction()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseColor)
+                ) {
+                    Text("حذف")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("انصراف")
+                }
+            }
         )
     }
 
@@ -104,6 +145,7 @@ fun EditTransactionScreen(
     LaunchedEffect(state.errorMessage) {
         state.errorMessage?.let { msg ->
             snackbarHostState.showSnackbar(msg)
+            viewModel.clearErrorMessage()
         }
     }
 
@@ -120,18 +162,88 @@ fun EditTransactionScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { viewModel.duplicateAsNew() },
-                        enabled = !state.isLoading
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "ثبت مجدد (تکرار تراکنش)",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    Box {
+                        IconButton(
+                            onClick = { showOverflowMenu = true },
+                            enabled = !state.isLoading,
+                            modifier = Modifier.testTag("edit_tx_more_menu")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "گزینه‌های بیشتر"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("ثبت مجدد (تکرار با تاریخ اکنون)") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    viewModel.duplicateAsNew()
+                                }
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "حذف تراکنش",
+                                        color = ExpenseColor,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = ExpenseColor
+                                    )
+                                },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showDeleteConfirmDialog = true
+                                }
+                            )
+                        }
                     }
                 }
             )
+        },
+        bottomBar = {
+            Surface(
+                tonalElevation = 3.dp,
+                shadowElevation = 6.dp,
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.imePadding()
+            ) {
+                Button(
+                    onClick = { viewModel.saveTransaction() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .height(52.dp)
+                        .testTag("edit_tx_save_button"),
+                    enabled = !state.isLoading,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = activeColor)
+                ) {
+                    Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "به‌روزرسانی تراکنش",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
@@ -141,134 +253,103 @@ fun EditTransactionScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Transaction Type Tabs
-            val selectedTabIndex = when (state.type) {
-                TransactionType.EXPENSE -> 0
-                TransactionType.INCOME -> 1
-                TransactionType.TRANSFER -> 2
-            }
-
-            TabRow(
-                selectedTabIndex = selectedTabIndex,
-                modifier = Modifier.clip(RoundedCornerShape(12.dp))
-            ) {
-                Tab(
-                    selected = state.type == TransactionType.EXPENSE,
-                    onClick = { viewModel.setTransactionType(TransactionType.EXPENSE) },
-                    text = {
-                        Text(
-                            "هزینه",
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.type == TransactionType.EXPENSE) ExpenseColor else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                )
-                Tab(
-                    selected = state.type == TransactionType.INCOME,
-                    onClick = { viewModel.setTransactionType(TransactionType.INCOME) },
-                    text = {
-                        Text(
-                            "درآمد",
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.type == TransactionType.INCOME) IncomeColor else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                )
-                Tab(
-                    selected = state.type == TransactionType.TRANSFER,
-                    onClick = { viewModel.setTransactionType(TransactionType.TRANSFER) },
-                    text = {
-                        Text(
-                            "انتقال",
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.type == TransactionType.TRANSFER) TransferColor else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                )
-            }
-
-            // Amount Input
-            Text(
-                text = "مبلغ تراکنش",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+            // 1. Segmented Transaction Type Selector (matches AddTransactionScreen)
+            TransactionTypeSegmentedSelector(
+                selectedType = state.type,
+                onTypeSelected = { viewModel.setTransactionType(it) }
             )
+
+            // 2. Prominent Amount Input
             AmountInput(
                 amount = state.amount,
-                onAmountChange = { viewModel.setAmount(it) }
+                onAmountChange = { viewModel.setAmount(it) },
+                color = activeColor,
+                autoFocus = false
             )
 
-            // Category Picker (For EXPENSE / INCOME)
-            if (state.type != TransactionType.TRANSFER) {
-                Text(
-                    text = "دسته‌بندی",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                CategoryPicker(
-                    categories = state.categories,
-                    selectedCategoryId = state.selectedCategory?.id,
-                    onCategorySelected = { viewModel.setSelectedCategory(it) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            // Account Selector
-            Text(
-                text = if (state.type == TransactionType.TRANSFER) "حساب مبدا" else "حساب",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            AccountDropdown(
-                accounts = state.accounts,
-                selectedAccount = state.selectedAccount,
-                onAccountSelected = { viewModel.setSelectedAccount(it) }
-            )
-
-            // Destination Account Selector (For TRANSFER)
+            // 3. Account Selection
             if (state.type == TransactionType.TRANSFER) {
-                Text(
-                    text = "حساب مقصد",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                TransferAccountsCard(
+                    accounts = state.accounts,
+                    selectedFromAccount = state.selectedAccount,
+                    selectedToAccount = state.selectedToAccount,
+                    onFromAccountSelected = { viewModel.setSelectedAccount(it) },
+                    onToAccountSelected = { viewModel.setSelectedToAccount(it) },
+                    onSwapAccounts = { viewModel.swapTransferAccounts() }
                 )
-                AccountDropdown(
-                    accounts = state.accounts.filter { it.id != state.selectedAccount?.id },
-                    selectedAccount = state.selectedToAccount,
-                    onAccountSelected = { viewModel.setSelectedToAccount(it) }
+            } else {
+                QuickAccountSelector(
+                    accounts = state.accounts,
+                    selectedAccount = state.selectedAccount,
+                    isLastUsedDefault = false,
+                    onAccountSelected = { viewModel.setSelectedAccount(it) }
                 )
             }
 
-            // Date & Time Selector
-            Text(
-                text = "تاریخ و ساعت تراکنش",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            // 4. Compact Category Picker (Top 8 + Expandable)
+            if (state.type != TransactionType.TRANSFER) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "دسته‌بندی",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (state.categories.size > 8) {
+                            TextButton(
+                                onClick = { showAllCategories = !showAllCategories },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                modifier = Modifier.testTag("edit_tx_toggle_all_categories")
+                            ) {
+                                Text(
+                                    text = if (showAllCategories) "نمایش کمتر" else "همه دسته‌ها (${state.categories.size.toPersianDigits()})",
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
+
+                    CategoryPicker(
+                        categories = state.categories,
+                        selectedCategoryId = state.selectedCategory?.id,
+                        onCategorySelected = { viewModel.setSelectedCategory(it) },
+                        maxVisibleCount = if (showAllCategories) null else 8,
+                        prioritizeSelected = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            // 5. Compact Date & Time Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Date Selector
                 OutlinedCard(
                     modifier = Modifier
-                        .weight(1.3f)
-                        .clickable { showDatePicker = true },
+                        .weight(1.35f)
+                        .clickable { showDatePicker = true }
+                        .testTag("edit_tx_date_picker"),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.CalendarToday,
                             contentDescription = "تاریخ",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = activeColor,
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -279,23 +360,24 @@ fun EditTransactionScreen(
                     }
                 }
 
-                // Time Selector
                 OutlinedCard(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { showTimePicker = true },
+                        .clickable { showTimePicker = true }
+                        .testTag("edit_tx_time_picker"),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.AccessTime,
                             contentDescription = "ساعت",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = activeColor,
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -307,56 +389,26 @@ fun EditTransactionScreen(
                 }
             }
 
-            // Optional Note
-            Text(
-                text = "توضیحات (اختیاری)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            // 6. Optional Note
             OutlinedTextField(
                 value = state.note,
                 onValueChange = { viewModel.setNote(it) },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("مثال: ویرایش یادداشت...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("edit_tx_note_input"),
+                placeholder = { Text("توضیحات اختیاری...") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.EditNote,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-
-            // Save Button
-            val buttonColor = when (state.type) {
-                TransactionType.EXPENSE -> ExpenseColor
-                TransactionType.INCOME -> IncomeColor
-                TransactionType.TRANSFER -> TransferColor
-            }
-
-            Button(
-                onClick = { viewModel.saveTransaction() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                enabled = !state.isLoading,
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
-            ) {
-                Icon(imageVector = Icons.Default.Check, contentDescription = "ذخیره")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("بروزرسانی تراکنش", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
-
-            OutlinedButton(
-                onClick = { viewModel.duplicateAsNew() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                enabled = !state.isLoading,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("ثبت مجدد (تکرار این تراکنش با تاریخ اکنون)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            }
         }
     }
 }

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Warning
@@ -29,112 +28,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.data.local.entity.AccountEntity
-import com.example.ui.components.AccountIconDisplay
 import com.example.ui.theme.ExpenseColor
-import com.example.util.toPersianDigits
-
-@Composable
-internal fun PatternAccountSelectionDialog(
-    accounts: List<AccountEntity>,
-    onSelectAccount: (Long?) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "انتخاب حساب برای الگوی پیامک",
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "برای تعریف یا ویرایش الگوی پیامک، حساب مورد نظر را انتخاب کنید:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                if (accounts.isEmpty()) {
-                    Text(
-                        text = "هنوز حسابی تعریف نشده است.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    accounts.forEach { acc ->
-                        Card(
-                            onClick = { onSelectAccount(acc.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                AccountIconDisplay(
-                                    iconName = acc.icon,
-                                    tint = Color(acc.color),
-                                    fontSize = 12.sp
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = acc.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    if (!acc.cardNumber.isNullOrBlank()) {
-                                        Text(
-                                            text = "کارت: ${acc.cardNumber.takeLast(4)}****".toPersianDigits(),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // General pattern without pre-selected account
-                OutlinedButton(
-                    onClick = { onSelectAccount(null) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("تعریف الگوی جدید (عمومی)")
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("انصراف")
-            }
-        }
-    )
-}
 
 @Composable
 internal fun RestoreOptionsDialog(
@@ -376,52 +273,6 @@ internal fun ExportBackupOptionsDialog(
 }
 
 @Composable
-internal fun PlainBackupSecurityWarningDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(36.dp)
-            )
-        },
-        title = {
-            Text(
-                text = "هشدار امنیتی",
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.error
-            )
-        },
-        text = {
-            Text(
-                text = "این فایل رمزنگاری نشده و حاوی تمام اطلاعات مالی شماست. فقط در محل امن نگه دارید.",
-                style = MaterialTheme.typography.bodyMedium,
-                lineHeight = 22.sp
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text("تأیید و ساخت")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("انصراف")
-            }
-        }
-    )
-}
-
-@Composable
 internal fun PlainBackupExportActionsDialog(
     onSaveJsonFile: () -> Unit,
     onCopyJsonToClipboard: () -> Unit,
@@ -441,6 +292,35 @@ internal fun PlainBackupExportActionsDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "هشدار امنیتی",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "این فایل رمزنگاری نشده و حاوی تمام اطلاعات مالی شماست. فقط در محل امن نگهداری کنید.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
                 Button(
                     onClick = onSaveJsonFile,
                     modifier = Modifier.fillMaxWidth(),

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Repeat
@@ -32,6 +34,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,8 +45,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -77,6 +78,7 @@ fun RecurringTransactionsScreen(
     viewModel: RecurringTransactionsViewModel,
     onNavigateBack: (() -> Unit)? = null,
     onNavigateToAdd: () -> Unit,
+    onNavigateToEdit: (Long) -> Unit = {},
     showTopBar: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -212,17 +214,17 @@ fun RecurringTransactionsScreen(
                 }
             }
 
-            // Filter Tabs
-            TabRow(
-                selectedTabIndex = state.activeTab.ordinal,
-                containerColor = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.fillMaxWidth()
+            // Filter Chips (replaces nested TabRow)
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                RecurringFilterTab.values().forEach { tab ->
-                    Tab(
+                items(RecurringFilterTab.values().toList(), key = { it.name }) { tab ->
+                    FilterChip(
                         selected = state.activeTab == tab,
                         onClick = { viewModel.selectTab(tab) },
-                        text = {
+                        label = {
                             Text(
                                 text = tab.title,
                                 fontWeight = if (state.activeTab == tab) FontWeight.Bold else FontWeight.Normal
@@ -268,6 +270,7 @@ fun RecurringTransactionsScreen(
                         RecurringItemCard(
                             item = item,
                             onExecute = { itemToExecute = item },
+                            onEdit = { onNavigateToEdit(item.recurring.id) },
                             onToggleActive = { viewModel.toggleActive(item) },
                             onDelete = { itemToDelete = item }
                         )
@@ -381,6 +384,7 @@ fun RecurringTransactionsScreen(
 fun RecurringItemCard(
     item: RecurringWithDetails,
     onExecute: () -> Unit,
+    onEdit: () -> Unit = {},
     onToggleActive: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -460,12 +464,20 @@ fun RecurringItemCard(
                             checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
                         )
                     )
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    IconButton(onClick = onEdit) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "ویرایش",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(onClick = onDelete) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "حذف",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.size(18.dp)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

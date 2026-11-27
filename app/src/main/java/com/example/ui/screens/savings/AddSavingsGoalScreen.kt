@@ -92,7 +92,12 @@ fun AddSavingsGoalScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("تعریف هدف پس‌انداز جدید", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = if (state.isEditing) "ویرایش هدف پس‌انداز" else "تعریف هدف پس‌انداز جدید",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -131,13 +136,15 @@ fun AddSavingsGoalScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Initial Amount Input (optional)
-            Text("مبلغ پس‌انداز اولیه (اختیاری)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            AmountInput(
-                amount = state.initialAmount,
-                onAmountChange = { viewModel.setInitialAmount(it) },
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Initial Amount Input (only when creating a new goal)
+            if (!state.isEditing) {
+                Text("مبلغ پس‌انداز اولیه (اختیاری)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                AmountInput(
+                    amount = state.initialAmount,
+                    onAmountChange = { viewModel.setInitialAmount(it) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             // Target Date Picker Field
             Card(
@@ -254,7 +261,10 @@ fun AddSavingsGoalScreen(
             ) {
                 Icon(Icons.Default.Check, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("ایجاد هدف پس‌انداز", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (state.isEditing) "ذخیره تغییرات" else "ایجاد هدف پس‌انداز",
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

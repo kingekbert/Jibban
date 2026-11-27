@@ -61,6 +61,7 @@ data class GroupExpensesUiState(
     val personSummaries: List<PersonDebtSummary> = emptyList(),
     val filterOnlyUnsettled: Boolean = true,
     val selectedTab: Int = 0, // 0: صورت‌حساب افراد, 1: تمام هزینه‌ها
+    val searchQuery: String = "",
     val totalPendingAmount: Long = 0L,
     val totalSettledAmount: Long = 0L,
     val pendingPeopleCount: Int = 0,
@@ -87,8 +88,16 @@ class GroupExpensesViewModel(
 
     private val _filterOnlyUnsettled = MutableStateFlow(true)
     private val _selectedTab = MutableStateFlow(0)
+    private val _searchQuery = MutableStateFlow("")
     private val _dialogState = MutableStateFlow(DialogState())
     private val _userMessage = MutableStateFlow<String?>(null)
+
+    private data class FilterState(
+        val onlyUnsettled: Boolean,
+        val tab: Int,
+        val searchQuery: String,
+        val message: String?
+    )
 
     private data class DialogState(
         val settleTarget: SettleTarget? = null,
@@ -100,8 +109,8 @@ class GroupExpensesViewModel(
         val unsettlingShare: GroupExpenseShareEntity? = null
     )
 
-    private val _filterTabAndMsg = combine(_filterOnlyUnsettled, _selectedTab, _userMessage) { onlyUnsettled, tab, msg ->
-        Triple(onlyUnsettled, tab, msg)
+    private val _filterTabAndMsg = combine(_filterOnlyUnsettled, _selectedTab, _searchQuery, _userMessage) { onlyUnsettled, tab, query, msg ->
+        FilterState(onlyUnsettled, tab, query, msg)
     }
 
     val uiState: StateFlow<GroupExpensesUiState> = combine(
@@ -110,8 +119,11 @@ class GroupExpensesViewModel(
         categoryRepository.allCategories,
         _filterTabAndMsg,
         _dialogState
-    ) { expenses: List<GroupExpenseWithShares>, accounts: List<AccountEntity>, categories: List<CategoryEntity>, uiFilter: Triple<Boolean, Int, String?>, dialog: DialogState ->
-        val (onlyUnsettled, tab, msg) = uiFilter
+    ) { expenses: List<GroupExpenseWithShares>, accounts: List<AccountEntity>, categories: List<CategoryEntity>, uiFilter: FilterState, dialog: DialogState ->
+        val onlyUnsettled = uiFilter.onlyUnsettled
+        val tab = uiFilter.tab
+        val query = uiFilter.searchQuery
+        val msg = uiFilter.message
         val allSharesWithExpense = expenses.flatMap { exp ->
             val parentNote = exp.transaction?.note?.ifBlank { "هزینه مشترک" } ?: "هزینه مشترک"
             val date = exp.transaction?.date ?: exp.groupExpense.createdAt
@@ -137,7 +149,9 @@ class GroupExpensesViewModel(
         val totalSettled = settledShares.sumOf { it.amount }
         val pendingCount = pendingShares.size
 
-        // Build person summaries: group open dangs by personName, sorted by debt descending
+        val normalizedQuery = query.trim()
+
+        // Build person summaries: group open dongs by personName, sorted by debt descending
         val personSummaries = allSharesWithExpense
             .filter { !it.isSettled }
             .groupBy { it.shareEntity.personName }
@@ -150,13 +164,22 @@ class GroupExpensesViewModel(
                     openDongs = sortedDongs
                 )
             }
+            .filter { person ->
+                normalizedQuery.isEmpty() ||
+                    person.personName.contains(normalizedQuery, ignoreCase = true) ||
+                    person.openDongs.any { it.parentNote.contains(normalizedQuery, ignoreCase = true) }
+            }
             .sortedByDescending { it.totalDebt }
 
-        val filteredExpenses = if (onlyUnsettled) {
-            expenses.filter { exp -> exp.shares.any { !it.isSettled } }
-        } else {
-            expenses
-        }
+        val filteredExpenses = expenses
+            .let { list ->
+                if (onlyUnsettled) list.filter { exp -> exp.shares.any { !it.isSettled } } else list
+            }
+            .filter { exp ->
+                normalizedQuery.isEmpty() ||
+                    exp.shares.any { it.personName.contains(normalizedQuery, ignoreCase = true) } ||
+                    (exp.transaction?.note?.contains(normalizedQuery, ignoreCase = true) == true)
+            }
 
         GroupExpensesUiState(
             groupExpenses = filteredExpenses,
@@ -165,6 +188,7 @@ class GroupExpensesViewModel(
             personSummaries = personSummaries,
             filterOnlyUnsettled = onlyUnsettled,
             selectedTab = tab,
+            searchQuery = query,
             totalPendingAmount = totalPending,
             totalSettledAmount = totalSettled,
             pendingPeopleCount = pendingCount,
@@ -189,6 +213,10 @@ class GroupExpensesViewModel(
 
     fun setFilterOnlyUnsettled(onlyUnsettled: Boolean) {
         _filterOnlyUnsettled.value = onlyUnsettled
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 
     // Open settle dialog for a single share

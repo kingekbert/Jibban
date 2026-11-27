@@ -1,6 +1,7 @@
 package com.example.ui.screens.debts
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.AlertDialog
@@ -29,23 +31,34 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +67,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.DebtEntity
 import com.example.data.local.entity.DebtType
 import com.example.ui.components.AmountInput
@@ -72,6 +86,17 @@ fun DebtsScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    var debtToDelete by remember { mutableStateOf<DebtEntity?>(null) }
+    var debtToSettle by remember { mutableStateOf<DebtEntity?>(null) }
+
+    LaunchedEffect(state.userMessage) {
+        state.userMessage?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
+            viewModel.clearUserMessage()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -87,6 +112,7 @@ fun DebtsScreen(
                 }
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { viewModel.openAddDialog() },
@@ -197,7 +223,7 @@ fun DebtsScreen(
             if (state.debts.isEmpty()) {
                 EmptyState(
                     title = if (state.selectedTab == DebtType.OWED_TO_ME) "هیچ طلبی ثبت نشده است" else "هیچ بدهی ثبت نشده است",
-                    buttonText = "ثبت موار جدید",
+                    buttonText = "ثبت مورد جدید",
                     onButtonClick = { viewModel.openAddDialog() },
                     modifier = Modifier.weight(1f)
                 )
@@ -212,13 +238,73 @@ fun DebtsScreen(
                     items(state.debts, key = { it.id }) { debt ->
                         DebtCardItem(
                             debt = debt,
-                            onToggleSettled = { viewModel.toggleSettled(debt) },
-                            onDelete = { viewModel.deleteDebt(debt) }
+                            onEdit = { viewModel.openEditDialog(debt) },
+                            onToggleSettled = {
+                                if (debt.isSettled) {
+                                    viewModel.toggleSettled(debt)
+                                } else {
+                                    debtToSettle = debt
+                                }
+                            },
+                            onDelete = { debtToDelete = debt }
                         )
                     }
                 }
             }
         }
+    }
+
+    debtToDelete?.let { debt ->
+        val typeLabel = if (debt.type == DebtType.OWED_TO_ME) "طلب" else "بدهی"
+        AlertDialog(
+            onDismissRequest = { debtToDelete = null },
+            title = { Text("حذف $typeLabel", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "آیا از حذف $typeLabel «${debt.personName}» به مبلغ ${AmountFormatter.format(debt.amount)} مطمئن هستید؟"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val deletedDebt = debt
+                        viewModel.deleteDebt(deletedDebt)
+                        debtToDelete = null
+                        coroutineScope.launch {
+                            snackbarHostState.currentSnackbarData?.dismiss()
+                            val result = snackbarHostState.showSnackbar(
+                                message = "$typeLabel «${deletedDebt.personName}» حذف شد",
+                                actionLabel = "بازگردانی",
+                                duration = SnackbarDuration.Short
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                viewModel.restoreDebt(deletedDebt)
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseColor)
+                ) {
+                    Text("حذف")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { debtToDelete = null }) {
+                    Text("انصراف")
+                }
+            }
+        )
+    }
+
+    debtToSettle?.let { debt ->
+        SettleDebtDialog(
+            debt = debt,
+            accounts = state.accounts,
+            onConfirm = { selectedAccountId ->
+                viewModel.settleDebt(debt, selectedAccountId)
+                debtToSettle = null
+            },
+            onDismiss = { debtToSettle = null }
+        )
     }
 
     if (state.showAddDialog) {
@@ -238,6 +324,7 @@ fun DebtsScreen(
 @Composable
 fun DebtCardItem(
     debt: DebtEntity,
+    onEdit: () -> Unit = {},
     onToggleSettled: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -246,7 +333,9 @@ fun DebtCardItem(
     val mainColor = if (isOwedToMe) IncomeColor else ExpenseColor
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEdit),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (debt.isSettled) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
@@ -330,8 +419,16 @@ fun DebtCardItem(
             IconButton(onClick = onToggleSettled) {
                 Icon(
                     imageVector = if (debt.isSettled) Icons.Default.CheckCircle else Icons.Outlined.CheckCircle,
-                    contentDescription = "تغییر وضعیت تسویه",
+                    contentDescription = if (debt.isSettled) "لغو تسویه" else "تسویه",
                     tint = if (debt.isSettled) IncomeColor else MaterialTheme.colorScheme.outline
+                )
+            }
+
+            IconButton(onClick = onEdit) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "ویرایش",
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -344,6 +441,115 @@ fun DebtCardItem(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettleDebtDialog(
+    debt: DebtEntity,
+    accounts: List<AccountEntity>,
+    onConfirm: (accountId: Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isOwedToMe = debt.type == DebtType.OWED_TO_ME
+    val typeLabel = if (isOwedToMe) "طلب" else "بدهی"
+    var recordTransaction by remember { mutableStateOf(accounts.isNotEmpty()) }
+    var selectedAccountId by remember(accounts) { mutableStateOf(accounts.firstOrNull()?.id) }
+    var dropdownExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("تسویه $typeLabel «${debt.personName}»", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "مبلغ: ${AmountFormatter.format(debt.amount)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isOwedToMe) IncomeColor else ExpenseColor
+                )
+
+                if (accounts.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { recordTransaction = !recordTransaction },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = recordTransaction,
+                            onCheckedChange = { recordTransaction = it }
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isOwedToMe) {
+                                "ثبت به عنوان درآمد (واریز به حساب)"
+                            } else {
+                                "ثبت به عنوان هزینه (کسر از حساب)"
+                            },
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    if (recordTransaction) {
+                        ExposedDropdownMenuBox(
+                            expanded = dropdownExpanded,
+                            onExpandedChange = { dropdownExpanded = it }
+                        ) {
+                            val selectedAccount = accounts.firstOrNull { it.id == selectedAccountId }
+                            OutlinedTextField(
+                                value = selectedAccount?.name ?: "انتخاب حساب...",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(if (isOwedToMe) "واریز به حساب" else "پرداخت از حساب") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            ExposedDropdownMenu(
+                                expanded = dropdownExpanded,
+                                onDismissRequest = { dropdownExpanded = false }
+                            ) {
+                                accounts.forEach { account ->
+                                    DropdownMenuItem(
+                                        text = { Text(account.name) },
+                                        onClick = {
+                                            selectedAccountId = account.id
+                                            dropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "این مورد بدون ثبت تراکنش به عنوان تسویه‌شده علامت‌گذاری می‌شود.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(if (recordTransaction) selectedAccountId else null)
+                },
+                enabled = !recordTransaction || selectedAccountId != null,
+                colors = ButtonDefaults.buttonColors(containerColor = IncomeColor)
+            ) {
+                Text(if (recordTransaction) "تسویه و ثبت تراکنش" else "فقط تسویه", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("انصراف")
+            }
+        }
+    )
 }
 
 @Composable
@@ -372,7 +578,12 @@ fun AddDebtDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("ثبت طلب / بدهی جدید", fontWeight = FontWeight.Bold) },
+        title = {
+            Text(
+                text = if (state.isEditing) "ویرایش طلب / بدهی" else "ثبت طلب / بدهی جدید",
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Type Selector
@@ -439,7 +650,7 @@ fun AddDebtDialog(
                 onClick = onSave,
                 enabled = state.personName.isNotBlank() && state.amount > 0L
             ) {
-                Text("ثبت")
+                Text(if (state.isEditing) "ذخیره" else "ثبت")
             }
         },
         dismissButton = {

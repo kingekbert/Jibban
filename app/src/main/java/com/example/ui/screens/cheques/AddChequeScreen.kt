@@ -89,7 +89,12 @@ fun AddChequeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ثبت چک صیادی جدید", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = if (state.isEditing) "ویرایش چک صیادی" else "ثبت چک صیادی جدید",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -291,7 +296,10 @@ fun AddChequeScreen(
             ) {
                 Icon(Icons.Default.Check, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("ثبت در دفترچه چک", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (state.isEditing) "ذخیره تغییرات" else "ثبت در دفترچه چک",
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

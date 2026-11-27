@@ -46,7 +46,10 @@ internal fun NavGraphBuilder.addSmsRoutes(
         ImportSmsScreen(
             viewModel = viewModel,
             initialText = initialText,
-            onNavigateBack = { navController.popBackStack() }
+            onNavigateBack = { navController.popBackStack() },
+            onNavigateToPatternLearner = { text ->
+                navController.navigate(Screen.PatternLearner.createRoute(null, text))
+            }
         )
     }
 

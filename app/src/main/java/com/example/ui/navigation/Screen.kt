@@ -3,13 +3,13 @@ package com.example.ui.navigation
 sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
     object Transactions : Screen("transactions")
-    object AddTransaction : Screen("add_transaction?type={type}") {
-        fun createRoute(type: String = "EXPENSE") = "add_transaction?type=$type"
+    object AddTransaction : Screen("add_transaction?type={type}&groupExpense={groupExpense}") {
+        fun createRoute(type: String = "EXPENSE", groupExpense: Boolean = false) =
+            "add_transaction?type=$type&groupExpense=$groupExpense"
     }
     object EditTransaction : Screen("edit_transaction/{transactionId}") {
         fun createRoute(transactionId: Long) = "edit_transaction/$transactionId"
     }
-    object Transfer : Screen("transfer")
     object Accounts : Screen("accounts")
     object AccountDetails : Screen("account_details/{accountId}") {
         fun createRoute(accountId: Long) = "account_details/$accountId"
@@ -53,11 +53,20 @@ sealed class Screen(val route: String) {
     object Plans : Screen("plans")
     object Settings : Screen("settings")
     object Cheques : Screen("cheques")
-    object AddCheque : Screen("add_cheque")
+    object AddCheque : Screen("add_cheque?chequeId={chequeId}") {
+        fun createRoute(chequeId: Long? = null) =
+            if (chequeId != null) "add_cheque?chequeId=$chequeId" else "add_cheque"
+    }
     object Recurring : Screen("recurring")
-    object AddRecurring : Screen("add_recurring")
+    object AddRecurring : Screen("add_recurring?recurringId={recurringId}") {
+        fun createRoute(recurringId: Long? = null) =
+            if (recurringId != null) "add_recurring?recurringId=$recurringId" else "add_recurring"
+    }
     object SavingsGoals : Screen("savings_goals")
-    object AddSavingsGoal : Screen("add_savings_goal")
+    object AddSavingsGoal : Screen("add_savings_goal?goalId={goalId}") {
+        fun createRoute(goalId: Long? = null) =
+            if (goalId != null) "add_savings_goal?goalId=$goalId" else "add_savings_goal"
+    }
     object GroupExpenses : Screen("group_expenses")
     object PatternLearner : Screen("pattern_learner?accountId={accountId}&initialText={initialText}&patternId={patternId}") {
         fun createRoute(accountId: Long? = null, initialText: String? = null, patternId: Long? = null): String {

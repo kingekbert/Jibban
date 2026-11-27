@@ -42,34 +42,58 @@ import com.example.util.BankLogoBadge
 import com.example.util.DateFormatter
 import com.example.util.toPersianDigits
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Pattern
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountDetailScreen(
     viewModel: AccountDetailViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToEditAccount: (accountId: Long) -> Unit = {},
     onNavigateToEditPattern: (accountId: Long, patternId: Long) -> Unit = { _, _ -> },
     onNavigateToAddPattern: (accountId: Long) -> Unit = {},
     onNavigateToReconciliation: (accountId: Long) -> Unit = {},
+    onNavigateToEditTransaction: (transactionId: Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val accountWithBalance = state.accountWithBalance
     val account = accountWithBalance?.account
     val accountColor = account?.color?.let { Color(it) } ?: MaterialTheme.colorScheme.primary
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    val copyToClipboard: (label: String, text: String, feedback: String) -> Unit = { label, text, feedback ->
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        clipboard?.setPrimaryClip(ClipData.newPlainText(label, text))
+        coroutineScope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(feedback)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -79,9 +103,20 @@ fun AccountDetailScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "بازگشت")
                     }
+                },
+                actions = {
+                    if (account != null) {
+                        IconButton(onClick = { onNavigateToEditAccount(account.id) }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "ویرایش حساب"
+                            )
+                        }
+                    }
                 }
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
     ) { innerPadding ->
         if (accountWithBalance == null) {
@@ -152,20 +187,70 @@ fun AccountDetailScreen(
                                         val formattedCard = account.cardNumber.chunked(4).joinToString(" - ").toPersianDigits()
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text("شماره کارت:", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.8f))
-                                            Text(formattedCard, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(formattedCard, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                                                IconButton(
+                                                    onClick = {
+                                                        copyToClipboard(
+                                                            "Card Number",
+                                                            account.cardNumber,
+                                                            "شماره کارت کپی شد"
+                                                        )
+                                                    }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.ContentCopy,
+                                                        contentDescription = "کپی شماره کارت",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                     if (!account.shabaNumber.isNullOrBlank()) {
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Spacer(modifier = Modifier.height(2.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text("شبا:", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.8f))
-                                            Text(account.shabaNumber.toPersianDigits(), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = Color.White)
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f),
+                                                horizontalArrangement = Arrangement.End
+                                            ) {
+                                                Text(
+                                                    text = account.shabaNumber.toPersianDigits(),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Color.White,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f, fill = false)
+                                                )
+                                                IconButton(
+                                                    onClick = {
+                                                        copyToClipboard(
+                                                            "Shaba Number",
+                                                            account.shabaNumber,
+                                                            "شماره شبا کپی شد"
+                                                        )
+                                                    }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.ContentCopy,
+                                                        contentDescription = "کپی شماره شبا",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                     if (!account.cardExpiry.isNullOrBlank()) {
@@ -210,7 +295,7 @@ fun AccountDetailScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = state.hasSnapshots) {
+                            .clickable(enabled = account != null) {
                                 if (account != null) {
                                     onNavigateToReconciliation(account.id)
                                 }
@@ -277,6 +362,12 @@ fun AccountDetailScreen(
                                     ) {
                                         Text("تاریخچه", style = MaterialTheme.typography.labelMedium)
                                     }
+                                } else {
+                                    TextButton(
+                                        onClick = { if (account != null) onNavigateToReconciliation(account.id) }
+                                    ) {
+                                        Text("تراز دستی", style = MaterialTheme.typography.labelMedium)
+                                    }
                                 }
                             }
 
@@ -285,7 +376,7 @@ fun AccountDetailScreen(
                             when {
                                 !state.hasSnapshots -> {
                                     Text(
-                                        text = "با ثبت تراکنش‌ها از پیامک، مانده بانک به‌طور خودکار بررسی می‌شود.",
+                                        text = "هنوز اسنپ‌شات پیامکی ثبت نشده است؛ برای تراز دستی و ایزوله موجودی با بانک لمس کنید.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -474,7 +565,10 @@ fun AccountDetailScreen(
                     }
                 } else {
                     items(state.transactions, key = { it.transaction.id }) { tx ->
-                        TransactionCard(transactionWithDetails = tx)
+                        TransactionCard(
+                            transactionWithDetails = tx,
+                            onClick = { onNavigateToEditTransaction(tx.transaction.id) }
+                        )
                     }
                 }
             }

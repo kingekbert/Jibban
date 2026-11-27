@@ -1,19 +1,19 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,16 +24,16 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,8 +58,9 @@ import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
 import com.example.ui.theme.TransferColor
 import com.example.util.DateFormatter
+import com.example.util.toPersianDigits
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FilterBottomSheet(
     period: DateFilterPeriod,
@@ -112,15 +114,12 @@ fun FilterBottomSheet(
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Header
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Pinned Header
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -137,291 +136,312 @@ fun FilterBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
 
-            // 1. بازه زمانی
-            Text(
-                text = "بازه زمانی",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
+            // Single Scrollable Body (no nested vertical scroll!)
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                FilterChip(
-                    selected = tempPeriod == DateFilterPeriod.ALL,
-                    onClick = { tempPeriod = DateFilterPeriod.ALL },
-                    label = { Text("همه") }
-                )
-                FilterChip(
-                    selected = tempPeriod == DateFilterPeriod.TODAY,
-                    onClick = { tempPeriod = DateFilterPeriod.TODAY },
-                    label = { Text("امروز") }
-                )
-                FilterChip(
-                    selected = tempPeriod == DateFilterPeriod.WEEK,
-                    onClick = { tempPeriod = DateFilterPeriod.WEEK },
-                    label = { Text("این هفته") }
-                )
-                FilterChip(
-                    selected = tempPeriod == DateFilterPeriod.MONTH,
-                    onClick = { tempPeriod = DateFilterPeriod.MONTH },
-                    label = { Text("این ماه") }
-                )
-                FilterChip(
-                    selected = tempPeriod == DateFilterPeriod.CUSTOM,
-                    onClick = { showCustomDatePicker = true },
-                    label = { Text("بازه دلخواه") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.DateRange,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                )
-            }
-
-            if (tempPeriod == DateFilterPeriod.CUSTOM && tempCustomStart != null && tempCustomEnd != null) {
-                Spacer(modifier = Modifier.height(6.dp))
+                // 1. بازه زمانی
                 Text(
-                    text = "از ${DateFormatter.formatShort(tempCustomStart!!)} تا ${DateFormatter.formatShort(tempCustomEnd!!)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 2. حساب
-            Text(
-                text = "حساب",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = tempAccountId == null,
-                    onClick = { tempAccountId = null },
-                    label = { Text("همه حساب‌ها") }
-                )
-                accounts.forEach { acc ->
-                    FilterChip(
-                        selected = tempAccountId == acc.id,
-                        onClick = { tempAccountId = acc.id },
-                        label = { Text(acc.name) }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 3. نوع تراکنش
-            Text(
-                text = "نوع تراکنش",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = tempType == null,
-                    onClick = { tempType = null },
-                    label = { Text("همه") }
-                )
-                FilterChip(
-                    selected = tempType == TransactionType.EXPENSE,
-                    onClick = { tempType = TransactionType.EXPENSE },
-                    label = { Text("هزینه") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = ExpenseColor.copy(alpha = 0.2f),
-                        selectedLabelColor = ExpenseColor
-                    )
-                )
-                FilterChip(
-                    selected = tempType == TransactionType.INCOME,
-                    onClick = { tempType = TransactionType.INCOME },
-                    label = { Text("درآمد") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = IncomeColor.copy(alpha = 0.2f),
-                        selectedLabelColor = IncomeColor
-                    )
-                )
-                if (allowTransfer) {
-                    FilterChip(
-                        selected = tempType == TransactionType.TRANSFER,
-                        onClick = { tempType = TransactionType.TRANSFER },
-                        label = { Text("انتقال") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = TransferColor.copy(alpha = 0.2f),
-                            selectedLabelColor = TransferColor
-                        )
-                    )
-                }
-            }
-
-            if (allowBookmark) {
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // وضعیت نشانه‌گذاری
-                Text(
-                    text = "وضعیت نشانه‌گذاری",
+                    text = "بازه زمانی",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                FilterChip(
-                    selected = tempOnlyBookmarked,
-                    onClick = { tempOnlyBookmarked = !tempOnlyBookmarked },
-                    label = { Text("فقط تراکنش‌های نشانه‌دار") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = if (tempOnlyBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFF59E0B).copy(alpha = 0.2f),
-                        selectedLabelColor = Color(0xFFB45309),
-                        selectedLeadingIconColor = Color(0xFFD97706)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = tempPeriod == DateFilterPeriod.ALL,
+                        onClick = { tempPeriod = DateFilterPeriod.ALL },
+                        label = { Text("همه") }
                     )
-                )
-            }
+                    FilterChip(
+                        selected = tempPeriod == DateFilterPeriod.TODAY,
+                        onClick = { tempPeriod = DateFilterPeriod.TODAY },
+                        label = { Text("امروز") }
+                    )
+                    FilterChip(
+                        selected = tempPeriod == DateFilterPeriod.WEEK,
+                        onClick = { tempPeriod = DateFilterPeriod.WEEK },
+                        label = { Text("این هفته") }
+                    )
+                    FilterChip(
+                        selected = tempPeriod == DateFilterPeriod.MONTH,
+                        onClick = { tempPeriod = DateFilterPeriod.MONTH },
+                        label = { Text("این ماه") }
+                    )
+                    FilterChip(
+                        selected = tempPeriod == DateFilterPeriod.CUSTOM,
+                        onClick = { showCustomDatePicker = true },
+                        label = { Text("بازه دلخواه") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(20.dp))
+                if (tempPeriod == DateFilterPeriod.CUSTOM && tempCustomStart != null && tempCustomEnd != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "از ${DateFormatter.formatShort(tempCustomStart!!)} تا ${DateFormatter.formatShort(tempCustomEnd!!)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
 
-            // 4. دسته‌بندی (چند انتخابی)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // 2. حساب
                 Text(
-                    text = "دسته‌بندی‌ها (چند انتخابی)",
+                    text = "حساب",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-
-                TextButton(
-                    onClick = {
-                        tempCategoryIds = emptySet()
-                    }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    FilterChip(
+                        selected = tempAccountId == null,
+                        onClick = { tempAccountId = null },
+                        label = { Text("همه حساب‌ها") }
+                    )
+                    accounts.forEach { acc ->
+                        FilterChip(
+                            selected = tempAccountId == acc.id,
+                            onClick = { tempAccountId = acc.id },
+                            label = { Text(acc.name) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // 3. نوع تراکنش
+                Text(
+                    text = "نوع تراکنش",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = tempType == null,
+                        onClick = { tempType = null },
+                        label = { Text("همه") }
+                    )
+                    FilterChip(
+                        selected = tempType == TransactionType.EXPENSE,
+                        onClick = { tempType = TransactionType.EXPENSE },
+                        label = { Text("هزینه") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ExpenseColor.copy(alpha = 0.2f),
+                            selectedLabelColor = ExpenseColor
+                        )
+                    )
+                    FilterChip(
+                        selected = tempType == TransactionType.INCOME,
+                        onClick = { tempType = TransactionType.INCOME },
+                        label = { Text("درآمد") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = IncomeColor.copy(alpha = 0.2f),
+                            selectedLabelColor = IncomeColor
+                        )
+                    )
+                    if (allowTransfer) {
+                        FilterChip(
+                            selected = tempType == TransactionType.TRANSFER,
+                            onClick = { tempType = TransactionType.TRANSFER },
+                            label = { Text("انتقال") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = TransferColor.copy(alpha = 0.2f),
+                                selectedLabelColor = TransferColor
+                            )
+                        )
+                    }
+                }
+
+                if (allowBookmark) {
+                    Spacer(modifier = Modifier.height(20.dp))
+
                     Text(
-                        text = if (tempCategoryIds.isEmpty()) "همه انتخاب شده‌اند" else "انتخاب همه",
-                        fontSize = 12.sp
+                        text = "وضعیت نشانه‌گذاری",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FilterChip(
+                        selected = tempOnlyBookmarked,
+                        onClick = { tempOnlyBookmarked = !tempOnlyBookmarked },
+                        label = { Text("فقط تراکنش‌های نشانه‌دار") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (tempOnlyBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFF59E0B).copy(alpha = 0.2f),
+                            selectedLabelColor = Color(0xFFB45309),
+                            selectedLeadingIconColor = Color(0xFFD97706)
+                        )
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-            // Categories list with checkboxes
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 240.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                categories.forEach { cat ->
-                    val isChecked = tempCategoryIds.isEmpty() || tempCategoryIds.contains(cat.id)
+                // 4. دسته‌بندی‌ها (انتخاب تک‌ضرب و چندتایی با چیپ بدون اسکرول تودرتو)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                if (tempCategoryIds.isEmpty()) {
-                                    // Currently all are selected; clicking this one deselects it
-                                    tempCategoryIds = categories.map { it.id }.toSet() - cat.id
-                                } else {
-                                    val next = if (tempCategoryIds.contains(cat.id)) {
-                                        tempCategoryIds - cat.id
-                                    } else {
-                                        tempCategoryIds + cat.id
-                                    }
-                                    tempCategoryIds = if (next.size == categories.size) emptySet() else next
-                                }
-                            }
-                            .padding(vertical = 4.dp, horizontal = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Checkbox(
-                            checked = isChecked,
-                            onCheckedChange = { checked ->
-                                if (tempCategoryIds.isEmpty()) {
-                                    if (!checked) {
-                                        tempCategoryIds = categories.map { it.id }.toSet() - cat.id
-                                    }
+                        Text(
+                            text = "دسته‌بندی‌ها",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        if (tempCategoryIds.isNotEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = "${tempCategoryIds.size.toString().toPersianDigits()} انتخاب‌شده",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    if (tempCategoryIds.isNotEmpty()) {
+                        TextButton(
+                            onClick = { tempCategoryIds = emptySet() },
+                            modifier = Modifier.testTag("filter_categories_clear_all")
+                        ) {
+                            Text("نمایش همه", fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                Text(
+                    text = if (tempCategoryIds.isEmpty()) {
+                        "همه دسته‌ها انتخاب هستند؛ برای فیلتر سریع، دسته‌های دلخواه را لمس کنید."
+                    } else {
+                        "می‌توانید چند دسته را هم‌زمان انتخاب کنید یا روی «همه» بزنید."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("filter_categories_flow"),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FilterChip(
+                        selected = tempCategoryIds.isEmpty(),
+                        onClick = { tempCategoryIds = emptySet() },
+                        label = { Text("همه دسته‌ها") },
+                        modifier = Modifier.testTag("filter_category_all")
+                    )
+
+                    categories.forEach { cat ->
+                        val isSelected = tempCategoryIds.contains(cat.id)
+                        val catColor = Color(cat.color)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                tempCategoryIds = if (tempCategoryIds.isEmpty()) {
+                                    // Single tap selects ONLY this category
+                                    setOf(cat.id)
+                                } else if (isSelected) {
+                                    tempCategoryIds - cat.id
                                 } else {
-                                    val next = if (checked) {
-                                        tempCategoryIds + cat.id
-                                    } else {
-                                        tempCategoryIds - cat.id
-                                    }
-                                    tempCategoryIds = if (next.size == categories.size) emptySet() else next
+                                    val next = tempCategoryIds + cat.id
+                                    if (next.size == categories.size) emptySet() else next
                                 }
                             },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = MaterialTheme.colorScheme.primary
-                            )
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color(cat.color)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = getCategoryIcon(cat.icon),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(10.dp))
-
-                        Text(
-                            text = cat.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Normal
+                            label = {
+                                Text(
+                                    text = cat.name,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(catColor),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = getCategoryIcon(cat.icon),
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = catColor.copy(alpha = 0.18f),
+                                selectedLabelColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            modifier = Modifier.testTag("filter_category_chip_${cat.id}")
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Bottom Actions: اعمال فیلتر | حذف فیلترها
+            // Pinned Bottom Actions: حذف فیلترها | اعمال فیلتر
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
@@ -435,7 +455,9 @@ fun FilterBottomSheet(
                         tempOnlyBookmarked = false
                         onReset()
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("filter_reset_button"),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("حذف فیلترها")
@@ -453,7 +475,9 @@ fun FilterBottomSheet(
                             tempOnlyBookmarked
                         )
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("filter_apply_button"),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("اعمال فیلتر")
@@ -505,4 +529,3 @@ fun FilterBottomSheet(
         onReset = onReset
     )
 }
-

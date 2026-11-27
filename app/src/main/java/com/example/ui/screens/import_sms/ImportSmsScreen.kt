@@ -1,6 +1,7 @@
 package com.example.ui.screens.import_sms
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,22 +14,24 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Pattern
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -44,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -52,12 +56,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,6 +79,8 @@ import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
 import com.example.util.BankLogoBadge
 import com.example.util.DateFormatter
+import com.example.util.toPersianDigits
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,18 +88,26 @@ fun ImportSmsScreen(
     viewModel: ImportSmsViewModel,
     onNavigateBack: () -> Unit,
     initialText: String? = null,
+    onNavigateToPatternLearner: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-
+    val clipboardManager = LocalClipboardManager.current
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var isSmsExpanded by remember { mutableStateOf(false) }
+    var showAllCategories by remember { mutableStateOf(false) }
 
     LaunchedEffect(initialText) {
         val raw = if (!initialText.isNullOrBlank() && initialText != "{initialText}") {
             try {
                 java.net.URLDecoder.decode(initialText, "UTF-8")
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 initialText
             }
         } else {
@@ -102,16 +119,6 @@ fun ImportSmsScreen(
             SharedSmsHolder.sharedText = null
         }
     }
-
-    LaunchedEffect(state.isAnalyzed) {
-        if (state.isAnalyzed) {
-            scrollState.animateScrollTo(scrollState.maxValue)
-        }
-    }
-    val snackbarHostState = remember { SnackbarHostState() }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
-    var isSmsExpanded by remember { mutableStateOf(false) }
 
     val (currentHour, currentMinute) = remember(state.dateTimestamp) {
         DateFormatter.extractHourAndMinute(state.dateTimestamp)
@@ -156,10 +163,12 @@ fun ImportSmsScreen(
         )
     }
 
+    val activeColor = if (state.transactionType == TransactionType.INCOME) IncomeColor else ExpenseColor
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("وارد کردن پیامک بانکی", fontWeight = FontWeight.Bold) },
+                title = { Text("ورود دستی پیامک بانکی", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -170,6 +179,39 @@ fun ImportSmsScreen(
                 }
             )
         },
+        bottomBar = {
+            AnimatedVisibility(visible = state.isAnalyzed) {
+                Surface(
+                    tonalElevation = 3.dp,
+                    shadowElevation = 6.dp,
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.imePadding()
+                ) {
+                    Button(
+                        onClick = { viewModel.saveTransaction() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .height(52.dp)
+                            .testTag("import_sms_save_button"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = activeColor)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "تأیید و ثبت تراکنش",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
     ) { innerPadding ->
@@ -179,14 +221,16 @@ fun ImportSmsScreen(
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // SMS Text Area Card (Collapsible when analyzed)
+            // SMS Input Card (Collapsible once analyzed)
             if (state.isAnalyzed && !isSmsExpanded) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
                 ) {
                     Row(
                         modifier = Modifier
@@ -237,7 +281,7 @@ fun ImportSmsScreen(
                                     imageVector = Icons.Default.Sms,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -256,40 +300,77 @@ fun ImportSmsScreen(
                         OutlinedTextField(
                             value = state.smsText,
                             onValueChange = { viewModel.onSmsTextChange(it) },
-                            placeholder = { Text("متن پیامک را اینجا پیست کنید...") },
+                            placeholder = { Text("متن پیامک را اینجا جای‌گذاری کنید...") },
                             minLines = 4,
                             maxLines = 7,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("import_sms_text_input"),
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        Button(
-                            onClick = {
-                                viewModel.parseSms()
-                                isSmsExpanded = false
-                            },
-                            enabled = state.smsText.isNotBlank(),
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Analytics,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("تحلیل پیامک", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            OutlinedButton(
+                                onClick = {
+                                    val pasted = clipboardManager.getText()?.text?.trim().orEmpty()
+                                    if (pasted.isNotBlank()) {
+                                        viewModel.setInitialSmsText(pasted, autoParse = true)
+                                        isSmsExpanded = false
+                                    } else {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("متنی در کلیپ‌بورد یافت نشد")
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("import_sms_paste_button"),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPaste,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("جای‌گذاری", fontWeight = FontWeight.SemiBold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    viewModel.parseSms()
+                                    isSmsExpanded = false
+                                },
+                                enabled = state.smsText.isNotBlank(),
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .height(48.dp)
+                                    .testTag("import_sms_analyze_button"),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Analytics,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("تحلیل پیامک", fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
             }
 
-            // Analysis Result Banner
+            // Analysis Result Banner + Form
             if (state.isAnalyzed) {
                 if (state.isRecognized) {
                     val pRes = state.parsedResult
                     val bank = pRes?.bankName ?: "بانک ناشناخته"
-                    val typeText = if (state.transactionType == TransactionType.INCOME) "واریز / حقوق" else "برداشت / هزینه"
+                    val typeText = if (state.transactionType == TransactionType.INCOME) "واریز / درآمد" else "برداشت / هزینه"
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -299,14 +380,14 @@ fun ImportSmsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
                                 tint = IncomeColor,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(26.dp)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
@@ -317,7 +398,7 @@ fun ImportSmsScreen(
                                     color = IncomeColor
                                 )
                                 Text(
-                                    text = "اطلاعات استخراج‌شده را بررسی و تکمیل کنید",
+                                    text = "اطلاعات استخراج‌شده را بررسی و تأیید کنید",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -330,32 +411,56 @@ fun ImportSmsScreen(
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = ExpenseColor.copy(alpha = 0.12f))
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = ExpenseColor,
-                                modifier = Modifier.size(28.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "پیامک قابل تشخیص نیست. لطفاً دستی وارد کنید",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ExpenseColor
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = ExpenseColor,
+                                    modifier = Modifier.size(26.dp)
                                 )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "الگوی این پیامک شناسایی نشد",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ExpenseColor
+                                    )
+                                    Text(
+                                        text = "می‌توانید اطلاعات را دستی ثبت کنید یا یک‌بار الگوی آن را به جیب‌بان یاد دهید.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            if (onNavigateToPatternLearner != null && state.smsText.isNotBlank()) {
+                                OutlinedButton(
+                                    onClick = { onNavigateToPatternLearner(state.smsText) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("import_sms_learn_pattern_button"),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Pattern,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("تعریف الگوی این پیامک", fontWeight = FontWeight.SemiBold)
+                                }
                             }
                         }
                     }
                 }
 
-                // Final Entry Form Card
+                // Streamlined Transaction Form Card (aligned with PreConfirmScreen)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -366,66 +471,72 @@ fun ImportSmsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Text(
-                            text = "مشخصات تراکنش",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                        // Segmented Expense / Income Pill Toggle
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                val isExpense = state.transactionType == TransactionType.EXPENSE
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(40.dp)
+                                        .clip(RoundedCornerShape(9.dp))
+                                        .background(if (isExpense) ExpenseColor else Color.Transparent)
+                                        .clickable { viewModel.setTransactionType(TransactionType.EXPENSE) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "هزینه (برداشت)",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = if (isExpense) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isExpense) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(40.dp)
+                                        .clip(RoundedCornerShape(9.dp))
+                                        .background(if (!isExpense) IncomeColor else Color.Transparent)
+                                        .clickable { viewModel.setTransactionType(TransactionType.INCOME) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "درآمد (واریز)",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = if (!isExpense) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (!isExpense) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        // Amount Input
+                        AmountInput(
+                            amount = state.amount,
+                            onAmountChange = { viewModel.setAmount(it) },
+                            color = activeColor,
+                            autoFocus = false,
+                            modifier = Modifier.fillMaxWidth()
                         )
 
-                        // Expense / Income Toggle
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Button(
-                                onClick = { viewModel.setTransactionType(TransactionType.EXPENSE) },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (state.transactionType == TransactionType.EXPENSE) ExpenseColor else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (state.transactionType == TransactionType.EXPENSE) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            ) {
-                                Text("هزینه (برداشت)")
-                            }
-
-                            Button(
-                                onClick = { viewModel.setTransactionType(TransactionType.INCOME) },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (state.transactionType == TransactionType.INCOME) IncomeColor else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (state.transactionType == TransactionType.INCOME) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            ) {
-                                Text("درآمد (واریز)")
-                            }
-                        }
-
-                        // Amount Input (Rial)
-                        Column {
-                            Text(
-                                text = "مبلغ (ریال)",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            AmountInput(
-                                amount = state.amount,
-                                onAmountChange = { viewModel.setAmount(it) },
-                                autoFocus = false,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-
                         // Account Selection
-                        Column {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = "انتخاب حساب",
-                                style = MaterialTheme.typography.labelLarge,
+                                text = "حساب",
+                                style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
                             AccountSelectorChips(
                                 accounts = state.accounts,
                                 selectedAccountId = state.selectedAccountId,
@@ -433,18 +544,37 @@ fun ImportSmsScreen(
                             )
                         }
 
-                        // Category Selection
-                        Column {
-                            Text(
-                                text = "انتخاب دسته",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
+                        // Compact Category Picker (Top 8 + Expandable)
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "دسته‌بندی",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (state.categories.size > 8) {
+                                    TextButton(
+                                        onClick = { showAllCategories = !showAllCategories },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                        modifier = Modifier.testTag("import_sms_toggle_all_categories")
+                                    ) {
+                                        Text(
+                                            text = if (showAllCategories) "نمایش کمتر" else "همه دسته‌ها (${state.categories.size.toPersianDigits()})",
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                }
+                            }
                             CategoryPicker(
                                 categories = state.categories,
                                 selectedCategoryId = state.selectedCategoryId,
                                 onCategorySelected = { viewModel.setSelectedCategory(it.id) },
+                                maxVisibleCount = if (showAllCategories) null else 8,
+                                prioritizeSelected = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -454,39 +584,37 @@ fun ImportSmsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Date Selector
                             OutlinedButton(
                                 onClick = { showDatePicker = true },
                                 modifier = Modifier.weight(1.3f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(10.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.DateRange,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = DateFormatter.formatMedium(state.dateTimestamp),
-                                    fontWeight = FontWeight.Medium
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
                             }
 
-                            // Time Selector
                             OutlinedButton(
                                 onClick = { showTimePicker = true },
                                 modifier = Modifier.weight(0.9f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(10.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.AccessTime,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = DateFormatter.formatTime(currentHour, currentMinute),
-                                    fontWeight = FontWeight.Medium
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
                             }
                         }
@@ -495,23 +623,16 @@ fun ImportSmsScreen(
                         OutlinedTextField(
                             value = state.note,
                             onValueChange = { viewModel.setNote(it) },
-                            label = { Text("توضیحات (اختیاری)") },
+                            placeholder = { Text("توضیحات اختیاری...") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         )
-
-                        // Save Button
-                        Button(
-                            onClick = { viewModel.saveTransaction() },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("ثبت تراکنش", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -531,7 +652,7 @@ fun AccountSelectorChips(
     LazyRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp)
+        contentPadding = PaddingValues(horizontal = 2.dp)
     ) {
         items(accounts, key = { it.id }) { acc ->
             val isSelected = acc.id == selectedAccountId
