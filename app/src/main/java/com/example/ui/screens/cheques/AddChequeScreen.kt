@@ -30,8 +30,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -48,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.entity.ChequeType
 import com.example.ui.components.AmountInput
+import com.example.ui.components.AppSegmentedControl
 import com.example.ui.components.JalaliDatePickerDialog
 import com.example.util.DateFormatter
 
@@ -115,22 +114,14 @@ fun AddChequeScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Cheque Type Tabs
-            TabRow(
-                selectedTabIndex = if (state.type == ChequeType.PAYABLE) 0 else 1,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Tab(
-                    selected = state.type == ChequeType.PAYABLE,
-                    onClick = { viewModel.setType(ChequeType.PAYABLE) },
-                    text = { Text("چک پرداختی (صادره توسط من)", fontWeight = FontWeight.Bold) }
-                )
-                Tab(
-                    selected = state.type == ChequeType.RECEIVABLE,
-                    onClick = { viewModel.setType(ChequeType.RECEIVABLE) },
-                    text = { Text("چک دریافتی (واگذار شده به من)", fontWeight = FontWeight.Bold) }
-                )
-            }
+            // Cheque Type Segmented Control
+            AppSegmentedControl(
+                items = listOf("چک پرداختی", "چک دریافتی"),
+                selectedIndex = if (state.type == ChequeType.PAYABLE) 0 else 1,
+                onSelect = { idx ->
+                    viewModel.setType(if (idx == 0) ChequeType.PAYABLE else ChequeType.RECEIVABLE)
+                }
+            )
 
             // Sayad Number Input (16 digits)
             OutlinedTextField(

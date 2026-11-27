@@ -120,8 +120,32 @@ object CardDisplayUtils {
     fun formatMaskedCard(cardNumber: String?): String {
         if (cardNumber.isNullOrBlank()) return ""
         val clean = cardNumber.filter { it.isDigit() }
+        if (clean.isEmpty()) return ""
         val last4 = clean.takeLast(4).toPersianDigits()
         return "\u202D**** **** **** $last4\u202C"
+    }
+
+    /**
+     * Compact masked card format for narrow cards (e.g. Dashboard horizontal account cards).
+     * Strict LTR override ensures dots are on the LEFT and last 4 digits are on the RIGHT.
+     */
+    fun formatCompactMaskedCard(cardNumber: String?): String {
+        if (cardNumber.isNullOrBlank()) return ""
+        val clean = cardNumber.filter { it.isDigit() }
+        if (clean.isEmpty()) return ""
+        val last4 = clean.takeLast(4).toPersianDigits()
+        return "\u202D•••• •••• •••• $last4\u202C"
+    }
+
+    /**
+     * Formats full 16-digit card number in 4-digit groups with strict Left-To-Right Override.
+     */
+    fun formatFullCard(cardNumber: String?): String {
+        if (cardNumber.isNullOrBlank()) return ""
+        val clean = cardNumber.filter { it.isDigit() }
+        if (clean.isEmpty()) return ""
+        val grouped = clean.chunked(4).joinToString(" - ").toPersianDigits()
+        return "\u202D$grouped\u202C"
     }
 
     /**

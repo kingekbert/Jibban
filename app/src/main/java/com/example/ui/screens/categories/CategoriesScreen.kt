@@ -63,9 +63,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.entity.CategoryEntity
 import com.example.data.local.entity.CategoryType
+import com.example.ui.components.AppSegmentedControl
 import com.example.ui.components.getCategoryIcon
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
+import com.example.ui.components.subtleCardBorder
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.goldAccent
+import com.example.ui.theme.incomeColor
 import com.example.util.AmountFormatter
 import kotlinx.coroutines.launch
 
@@ -164,36 +167,12 @@ fun CategoriesScreenContent(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            TabRow(
-                selectedTabIndex = selectedTab,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = {
-                        Text(
-                            "دسته‌های هزینه",
-                            fontWeight = FontWeight.Bold,
-                            color = if (selectedTab == 0) ExpenseColor else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = {
-                        Text(
-                            "دسته‌های درآمد",
-                            fontWeight = FontWeight.Bold,
-                            color = if (selectedTab == 1) IncomeColor else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                )
-            }
+            AppSegmentedControl(
+                items = listOf("دسته‌های هزینه", "دسته‌های درآمد"),
+                selectedIndex = selectedTab,
+                onSelect = { selectedTab = it },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
             if (filteredCategories.isEmpty()) {
                 Box(
@@ -237,7 +216,7 @@ fun CategoriesScreenContent(
 
         FloatingActionButton(
             onClick = { onNavigateToAddCategory(if (selectedTab == 0) "EXPENSE" else "INCOME") },
-            containerColor = if (selectedTab == 0) ExpenseColor else IncomeColor,
+            containerColor = if (selectedTab == 0) MaterialTheme.expenseColor else MaterialTheme.incomeColor,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp),
@@ -268,10 +247,11 @@ fun CategoryGridCard(
                 onLongClick = onDelete
             ),
         shape = RoundedCornerShape(16.dp),
+        border = subtleCardBorder(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -334,7 +314,7 @@ fun CategoryGridCard(
                 Icon(
                     imageVector = if (category.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     contentDescription = if (category.isFavorite) "حذف از علاقه‌مندی" else "افزودن به علاقه‌مندی",
-                    tint = if (category.isFavorite) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = if (category.isFavorite) MaterialTheme.goldAccent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(22.dp)
                 )
             }

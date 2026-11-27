@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
@@ -27,8 +26,6 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -41,23 +38,62 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.BuildConfig
+import com.example.ui.components.AppSurfaceCard
 import com.example.util.toPersianDigits
+
+@Composable
+private fun SettingsCardHeader(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.11f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun ThemeSelectionCard(
     selectedThemeMode: String,
     onThemeSelected: (String) -> Unit
 ) {
-    Card(
+    AppSurfaceCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
@@ -65,28 +101,10 @@ fun ThemeSelectionCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Palette,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "پوسته برنامه (تم)",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            SettingsCardHeader(
+                icon = Icons.Default.Palette,
+                title = "پوسته برنامه"
+            )
 
             val themeOptions = listOf(
                 Triple("SYSTEM", "سیستم", Icons.Default.BrightnessAuto),
@@ -103,6 +121,7 @@ fun ThemeSelectionCard(
                     FilterChip(
                         selected = isSelected,
                         onClick = { onThemeSelected(mode) },
+                        shape = RoundedCornerShape(12.dp),
                         label = {
                             Text(
                                 text = label,
@@ -136,11 +155,9 @@ fun BackupRestoreCard(
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit
 ) {
-    Card(
+    AppSurfaceCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
@@ -148,41 +165,22 @@ fun BackupRestoreCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Backup,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "پشتیبان‌گیری و بازیابی",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            SettingsCardHeader(
+                icon = Icons.Default.Backup,
+                title = "پشتیبان‌گیری و بازیابی"
+            )
 
-            // Display Last Backup Timestamp
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .padding(12.dp),
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "آخرین بک‌آپ:",
+                    text = "آخرین بک‌آپ",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -205,12 +203,12 @@ fun BackupRestoreCard(
             } else {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Export Backup Button
                     Button(
                         onClick = onExportBackup,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Backup,
@@ -218,13 +216,13 @@ fun BackupRestoreCard(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("تهیه بک‌آپ")
+                        Text("تهیه بک‌آپ", fontWeight = FontWeight.SemiBold)
                     }
 
-                    // Import Backup Button
                     OutlinedButton(
                         onClick = onImportBackup,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Restore,
@@ -232,7 +230,7 @@ fun BackupRestoreCard(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("بازیابی داده")
+                        Text("بازیابی داده", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -242,64 +240,26 @@ fun BackupRestoreCard(
 
 @Composable
 fun AboutAppCard() {
-    Card(
+    AppSurfaceCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "درباره برنامه",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "جیب‌بان (JeebBan)",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "نسخه ${BuildConfig.VERSION_NAME}".toPersianDigits(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "اپلیکیشن هوشمند مدیریت مالی شخصی جیب‌بان، حساب‌ها و تراکنش‌ها به‌صورت ۱۰۰٪ آفلاین و امن روی دستگاه شما.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            SettingsCardHeader(
+                icon = Icons.Default.Info,
+                title = "درباره جیب‌بان",
+                subtitle = "نسخه ${BuildConfig.VERSION_NAME}".toPersianDigits()
+            )
+            Text(
+                text = "مدیریت حساب‌ها، هزینه‌ها و پیامک‌های بانکی به‌صورت کاملاً آفلاین و خصوصی روی دستگاه شما.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -313,13 +273,11 @@ fun SecuritySettingsCard(
     onSelectGraceMs: (Long) -> Unit,
     onToggleSecureScreen: (Boolean) -> Unit
 ) {
-    Card(
+    AppSurfaceCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("security_settings_card"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
@@ -327,30 +285,11 @@ fun SecuritySettingsCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "امنیت و حریم خصوصی",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            SettingsCardHeader(
+                icon = Icons.Default.Lock,
+                title = "امنیت و حریم خصوصی"
+            )
 
-            // App Lock Toggle
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -358,7 +297,7 @@ fun SecuritySettingsCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "قفل اپلیکیشن",
+                        text = "قفل برنامه",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium
                     )
@@ -376,7 +315,6 @@ fun SecuritySettingsCard(
                 )
             }
 
-            // Lock Grace Period Options (visible when lock is enabled)
             if (isLockEnabled) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -400,6 +338,7 @@ fun SecuritySettingsCard(
                             FilterChip(
                                 selected = lockGraceMs == ms,
                                 onClick = { onSelectGraceMs(ms) },
+                                shape = RoundedCornerShape(10.dp),
                                 label = { Text(label.toPersianDigits()) },
                                 modifier = Modifier.testTag("lock_grace_chip_$ms")
                             )
@@ -408,9 +347,8 @@ fun SecuritySettingsCard(
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
 
-            // Secure Screen (FLAG_SECURE) Toggle
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -426,7 +364,7 @@ fun SecuritySettingsCard(
                         text = if (isLockEnabled) {
                             "جلوگیری از اسکرین‌شات و مخفی‌سازی پیش‌نمایش (همراه قفل فعال است)"
                         } else {
-                            "جلوگیری از گرفتن اسکرین‌شات و نمایش محتوا در لیست برنامه‌های اخیر"
+                            "جلوگیری از اسکرین‌شات و نمایش محتوا در لیست برنامه‌های اخیر"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -451,13 +389,11 @@ fun PeriodicSmsScanCard(
     onToggleEnabled: (Boolean) -> Unit,
     onSelectIntervalHours: (Int) -> Unit
 ) {
-    Card(
+    AppSurfaceCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("periodic_sms_scan_card"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
@@ -476,9 +412,9 @@ fun PeriodicSmsScanCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.11f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -491,13 +427,13 @@ fun PeriodicSmsScanCard(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "اسکن خودکار دوره‌ای پیامک",
+                            text = "اسکن دوره‌ای پیامک",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = if (isEnabled) {
-                                "بررسی هر $intervalHours ساعت و ارسال اعلان برای تراکنش جدید".toPersianDigits()
+                                "بررسی هر $intervalHours ساعت و ارسال اعلان".toPersianDigits()
                             } else {
                                 "اعلان خودکار هنگام دریافت پیامک بانکی جدید"
                             },
@@ -517,7 +453,7 @@ fun PeriodicSmsScanCard(
             if (isEnabled) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "بازه زمانی بررسی خودکار:",
+                        text = "بازه زمانی بررسی:",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -532,6 +468,7 @@ fun PeriodicSmsScanCard(
                             FilterChip(
                                 selected = intervalHours == hours,
                                 onClick = { onSelectIntervalHours(hours) },
+                                shape = RoundedCornerShape(10.dp),
                                 label = { Text("هر $hours ساعت".toPersianDigits()) },
                                 modifier = Modifier.testTag("periodic_sms_interval_$hours")
                             )

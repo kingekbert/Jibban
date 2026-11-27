@@ -142,7 +142,11 @@ class ScanSmsViewModel(
 
                             // Strict check: only include SMS where amount, date, and transactionType are all non-null and amount > 0
                             val amt = parsed.amount
-                            val smsDate = parsed.date ?: date
+                            val smsDate = com.example.util.PatternMatcher.resolveReliableSmsTimestamp(
+                                parsedDate = parsed.date,
+                                smsText = body,
+                                receivedAt = date
+                            )
                             val txType = parsed.transactionType
                             val isStrictlyMatched = (amt != null && amt > 0L && txType != null)
 
@@ -156,6 +160,7 @@ class ScanSmsViewModel(
                                 val effectiveParsed = parsed.copy(
                                     bankName = if (parsed.bankName.isNullOrBlank()) senderAccount?.name else parsed.bankName,
                                     accountIdentifier = if (parsed.accountIdentifier.isNullOrBlank()) (senderAccount?.cardNumber?.takeLast(4) ?: "") else parsed.accountIdentifier,
+                                    date = smsDate,
                                     balance = extractedBalance
                                 )
 
@@ -439,10 +444,17 @@ class ScanSmsViewModel(
                 ?: com.example.util.PatternMatcher.extractBalanceFromText(latestWithBalance.rawText)
                 ?: continue
 
+            val reliableSmsDate = com.example.util.PatternMatcher.resolveReliableSmsTimestamp(
+                parsedDate = latestWithBalance.parsedSms.date ?: latestWithBalance.date,
+                smsText = latestWithBalance.rawText,
+                receivedAt = latestWithBalance.receivedAt
+            )
+
             runCatching {
+                repo.cleanupInvalidFutureSnapshots(accountId)
                 repo.recordSnapshot(
                     accountId = accountId,
-                    smsDate = latestWithBalance.date,
+                    smsDate = reliableSmsDate,
                     balance = bankBalance,
                     smsHash = latestWithBalance.smsHash
                 )
@@ -459,7 +471,7 @@ class ScanSmsViewModel(
                         appBalance = appBalance,
                         bankBalance = bankBalance,
                         diff = diff,
-                        latestSmsDate = latestWithBalance.date
+                        latestSmsDate = reliableSmsDate
                     )
                 )
             }

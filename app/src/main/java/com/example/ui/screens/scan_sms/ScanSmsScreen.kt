@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -91,8 +90,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.entity.TransactionType
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
+import com.example.ui.components.subtleCardBorder
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.incomeColor
 import com.example.util.AmountFormatter
 import com.example.util.BankLogoBadge
 import com.example.util.DateFormatter
@@ -500,7 +500,7 @@ fun ScanSmsScreen(
                     Text(
                         text = "برای اسکن پیامک‌ها نیاز به مجوز خواندن پیامک است.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = ExpenseColor,
+                        color = MaterialTheme.expenseColor,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -598,7 +598,7 @@ fun ScanSmsScreen(
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
                                     contentDescription = null,
-                                    tint = IncomeColor,
+                                    tint = MaterialTheme.incomeColor,
                                     modifier = Modifier.size(48.dp)
                                 )
                                 Text(
@@ -685,13 +685,13 @@ fun ScanSmsScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(IncomeColor.copy(alpha = 0.14f))
+                                        .background(MaterialTheme.incomeColor.copy(alpha = 0.14f))
                                         .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
                                         text = "آماده ثبت",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = IncomeColor,
+                                        color = MaterialTheme.incomeColor,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -797,19 +797,20 @@ fun DetectedTransferCard(
     onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
     val isRegistered = transfer.isRegistered
+    val incomeTint = MaterialTheme.incomeColor
+    val expenseTint = MaterialTheme.expenseColor
 
     val cardBg = if (isRegistered) {
-        if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f) else Color(0xFFF1F3F5)
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
     } else {
-        if (isDark) MaterialTheme.colorScheme.surface else Color.White
+        MaterialTheme.colorScheme.surface
     }
 
     val cardBorder = if (isRegistered) {
-        androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        subtleCardBorder(0.55f)
     } else {
-        androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+        androidx.compose.foundation.BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
     }
 
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -829,7 +830,7 @@ fun DetectedTransferCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
         border = cardBorder,
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isRegistered) 0.dp else 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -863,21 +864,21 @@ fun DetectedTransferCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(if (isDark) Color(0xFF1E3320) else Color(0xFFE8F5E9))
+                            .background(incomeTint.copy(alpha = 0.14f))
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
-                                tint = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32),
+                                tint = incomeTint,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "ثبت‌شده",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32),
+                                color = incomeTint,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -914,7 +915,7 @@ fun DetectedTransferCard(
                     Text(
                         text = "مبدأ (برداشت):",
                         style = MaterialTheme.typography.labelSmall,
-                        color = ExpenseColor
+                        color = expenseTint
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -956,7 +957,7 @@ fun DetectedTransferCard(
                     Text(
                         text = "مقصد (واریز):",
                         style = MaterialTheme.typography.labelSmall,
-                        color = IncomeColor
+                        color = incomeTint
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -1008,13 +1009,13 @@ fun DetectedTransferCard(
                         Text(
                             text = "کارمزد بانکی:",
                             style = MaterialTheme.typography.labelSmall,
-                            color = ExpenseColor
+                            color = expenseTint
                         )
                         Text(
                             text = AmountFormatter.formatRial(transfer.feeAmount),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = ExpenseColor
+                            color = expenseTint
                         )
                     }
                 }
@@ -1051,23 +1052,24 @@ fun ScannedSmsCard(
     onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
     val parsed = item.parsedSms
     val isExpense = parsed.transactionType != TransactionType.INCOME
     val typeText = if (isExpense) "هزینه" else "درآمد"
-    val baseTypeColor = if (isExpense) ExpenseColor else IncomeColor
+    val incomeTint = MaterialTheme.incomeColor
+    val expenseTint = MaterialTheme.expenseColor
+    val baseTypeColor = if (isExpense) expenseTint else incomeTint
 
-    // Distinct greyed-out background for registered items
+    // Theme-safe background for registered vs. unregistered items
     val cardBg = if (item.isRegistered) {
-        if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f) else Color(0xFFF1F3F5)
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
     } else {
-        if (isDark) MaterialTheme.colorScheme.surface else Color.White
+        MaterialTheme.colorScheme.surface
     }
 
     val cardBorder = if (item.isRegistered) {
-        androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        subtleCardBorder(0.55f)
     } else {
-        null
+        subtleCardBorder(0.85f)
     }
 
     val textColor = if (item.isRegistered) {
@@ -1091,7 +1093,7 @@ fun ScannedSmsCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
                 onClick = {
                     if (!item.isRegistered) {
@@ -1100,10 +1102,10 @@ fun ScannedSmsCard(
                 },
                 onLongClick = onLongClick
             ),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
         border = cardBorder,
-        elevation = CardDefaults.cardElevation(defaultElevation = if (item.isRegistered) 0.dp else 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -1166,41 +1168,39 @@ fun ScannedSmsCard(
                     }
 
                     if (item.isRegistered) {
-                        // برچسب «ثبت‌شده» خوانا و باکلاس با آیکون تیک سبز
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (isDark) Color(0xFF1E3320) else Color(0xFFE8F5E9))
+                                .background(incomeTint.copy(alpha = 0.14f))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32),
+                                    tint = incomeTint,
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = "ثبت‌شده",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32),
+                                    color = incomeTint,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                     } else {
-                        // برچسب «جدید» برجسته
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(IncomeColor.copy(alpha = 0.15f))
+                                .background(incomeTint.copy(alpha = 0.15f))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "جدید",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = IncomeColor,
+                                color = incomeTint,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -1238,18 +1238,17 @@ fun ScannedSmsCard(
             Spacer(modifier = Modifier.width(8.dp))
 
             if (item.isRegistered) {
-                // آیکون تیک شکیل به جای دکمه برای تراکنش‌های ثبت‌شده
                 Box(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(if (isDark) Color(0xFF1E3320) else Color(0xFFE8F5E9)),
+                        .background(incomeTint.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "قبلاً ثبت‌شده",
-                        tint = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32),
+                        tint = incomeTint,
                         modifier = Modifier.size(20.dp)
                     )
                 }

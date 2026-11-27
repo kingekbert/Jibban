@@ -214,4 +214,97 @@ class PatternMatcherDateTest {
         val parsed = PatternMatcher.match(smsSingleDigitHour, listOf(pattern))
         assertNull(parsed)
     }
+
+    @Test
+    fun match_userReportedAbanSingleDigitHourSms_parsesAccurateDatesAndBalances() {
+        val smsAban21 = """
+            420970020082269001
+            1,000,000-
+            1405/8/21-8:14
+            مانده:1,075,709,472
+        """.trimIndent()
+
+        val smsAban8 = """
+            420970020082269001
+            325,000-
+            1405/8/8-7:37
+            مانده:609,934,422
+        """.trimIndent()
+
+        // Legacy saved pattern where time tokens preceded date AND were left as IGNORE
+        val legacyUntaggedTimeFields = listOf(
+            ExtractedField("420970020082269001", 0, FieldType.ACCOUNT_IDENTIFIER),
+            ExtractedField("2,000,000", 1, FieldType.AMOUNT),
+            ExtractedField("-", 1, FieldType.SIGN),
+            ExtractedField("12", 2, FieldType.IGNORE),
+            ExtractedField("37", 2, FieldType.IGNORE),
+            ExtractedField("1405", 2, FieldType.DATE_YEAR),
+            ExtractedField("9", 2, FieldType.DATE_MONTH),
+            ExtractedField("3", 2, FieldType.DATE_DAY),
+            ExtractedField("-", 2, FieldType.IGNORE),
+            ExtractedField("مانده", 3, FieldType.IGNORE),
+            ExtractedField("756,874,872", 3, FieldType.BALANCE)
+        )
+        val pattern = SmsPatternEntity(
+            id = 6L,
+            accountIdentifier = "420970020082269001",
+            sampleSms = smsDoubleDigitHour,
+            extractedFields = gson.toJson(legacyUntaggedTimeFields),
+            bankName = "مهر ایران"
+        )
+
+        val parsed21 = PatternMatcher.match(smsAban21, listOf(pattern))
+        assertNotNull(parsed21)
+        assertEquals(1_000_000L, parsed21!!.amount)
+        assertEquals(1_075_709_472L, parsed21.balance)
+        assertEquals(JalaliDate(1405, 8, 21), JalaliDate.fromTimestamp(parsed21.date!!))
+        assertEquals(Pair(8, 14), DateFormatter.extractHourAndMinute(parsed21.date!!))
+
+        val parsed8 = PatternMatcher.match(smsAban8, listOf(pattern))
+        assertNotNull(parsed8)
+        assertEquals(325_000L, parsed8!!.amount)
+        assertEquals(609_934_422L, parsed8.balance)
+        assertEquals(JalaliDate(1405, 8, 8), JalaliDate.fromTimestamp(parsed8.date!!))
+        assertEquals(Pair(7, 37), DateFormatter.extractHourAndMinute(parsed8.date!!))
+    }
+
+    @Test
+    fun resolveReliableSmsTimestamp_rejectsBogusFutureDates1421And1408AndRecoversTrueSmsDate() {
+        val smsAban21 = """
+            420970020082269001
+            1,000,000-
+            1405/8/21-8:14
+            مانده:1,075,709,472
+        """.trimIndent()
+        val smsAban8 = """
+            420970020082269001
+            325,000-
+            1405/8/8-7:37
+            مانده:609,934,422
+        """.trimIndent()
+
+        val bogus1421 = JalaliDate(1421, 1, 8).toStartOfDayTimestamp()
+        val bogus1408 = JalaliDate(1408, 1, 7).toStartOfDayTimestamp()
+        val received21 = JalaliDate(1405, 8, 21).toStartOfDayTimestamp() + (8 * 60 + 15) * 60_000L
+        val received8 = JalaliDate(1405, 8, 8).toStartOfDayTimestamp() + (7 * 60 + 38) * 60_000L
+
+        val resolved21 = PatternMatcher.resolveReliableSmsTimestamp(
+            parsedDate = bogus1421,
+            smsText = smsAban21,
+            receivedAt = received21
+        )
+        assertEquals(JalaliDate(1405, 8, 21), JalaliDate.fromTimestamp(resolved21))
+        assertEquals(Pair(8, 14), DateFormatter.extractHourAndMinute(resolved21))
+
+        val resolved8 = PatternMatcher.resolveReliableSmsTimestamp(
+            parsedDate = bogus1408,
+            smsText = smsAban8,
+            receivedAt = received8
+        )
+        assertEquals(JalaliDate(1405, 8, 8), JalaliDate.fromTimestamp(resolved8))
+        assertEquals(Pair(7, 37), DateFormatter.extractHourAndMinute(resolved8))
+
+        // Direct text extraction must reject impossible future dates like 1421/01/08
+        assertNull(PatternMatcher.extractDateTimeFromText("تاریخ: 1421/01/08-08:14"))
+    }
 }

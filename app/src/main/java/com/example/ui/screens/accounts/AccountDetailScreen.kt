@@ -29,14 +29,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.components.AppSurfaceCard
 import com.example.ui.components.TransactionCard
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.incomeColor
 import com.example.util.AmountFormatter
 import com.example.util.BankLogoBadge
 import com.example.util.DateFormatter
@@ -140,17 +144,30 @@ fun AccountDetailScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Large Balance Card
+                // Large Balance Card with contrast-safe deep gradient scrim
                 item {
+                    val safeStartColor = if (accountColor.luminance() > 0.36f) {
+                        lerp(accountColor, Color(0xFF102016), 0.48f)
+                    } else {
+                        lerp(accountColor, Color.Black, 0.22f)
+                    }
+                    val safeEndColor = if (accountColor.luminance() > 0.36f) {
+                        lerp(accountColor, Color(0xFF0A140E), 0.62f)
+                    } else {
+                        accountColor
+                    }
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = accountColor),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        shape = RoundedCornerShape(22.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .background(
+                                    Brush.linearGradient(listOf(safeStartColor, safeEndColor))
+                                )
                                 .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -279,6 +296,8 @@ fun AccountDetailScreen(
 
                 // Stats Cards (Income, Expense, Count)
                 item {
+                    val incomeTint = MaterialTheme.incomeColor
+                    val expenseTint = MaterialTheme.expenseColor
                     val animatedIncome = rememberAnimatedAmount(targetAmount = state.totalIncome, durationMillis = 480)
                     val animatedExpense = rememberAnimatedAmount(targetAmount = state.totalExpense, durationMillis = 480)
                     Row(
@@ -288,13 +307,13 @@ fun AccountDetailScreen(
                         StatBox(
                             title = "ورودی کل",
                             amountStr = AmountFormatter.format(animatedIncome),
-                            color = IncomeColor,
+                            color = incomeTint,
                             modifier = Modifier.weight(1f)
                         )
                         StatBox(
                             title = "خروجی کل",
                             amountStr = AmountFormatter.format(animatedExpense),
-                            color = ExpenseColor,
+                            color = expenseTint,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -302,6 +321,7 @@ fun AccountDetailScreen(
 
                 // کارت تطبیق مانده (Balance Reconciliation Card)
                 item {
+                    val syncedColor = MaterialTheme.incomeColor
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -313,15 +333,15 @@ fun AccountDetailScreen(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = when {
-                                !state.hasSnapshots -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                state.isReconciliationSynced -> IncomeColor.copy(alpha = 0.12f)
+                                !state.hasSnapshots -> MaterialTheme.colorScheme.surface
+                                state.isReconciliationSynced -> syncedColor.copy(alpha = 0.10f)
                                 else -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
                             }
                         ),
                         border = when {
-                            !state.hasSnapshots -> null
-                            state.isReconciliationSynced -> androidx.compose.foundation.BorderStroke(1.dp, IncomeColor.copy(alpha = 0.4f))
-                            else -> androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
+                            !state.hasSnapshots -> androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
+                            state.isReconciliationSynced -> androidx.compose.foundation.BorderStroke(1.dp, syncedColor.copy(alpha = 0.38f))
+                            else -> androidx.compose.foundation.BorderStroke(1.2.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f))
                         }
                     ) {
                         Column(
@@ -344,10 +364,10 @@ fun AccountDetailScreen(
                                         contentDescription = null,
                                         tint = when {
                                             !state.hasSnapshots -> MaterialTheme.colorScheme.onSurfaceVariant
-                                            state.isReconciliationSynced -> IncomeColor
+                                            state.isReconciliationSynced -> syncedColor
                                             else -> MaterialTheme.colorScheme.error
                                         },
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(22.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
@@ -362,7 +382,7 @@ fun AccountDetailScreen(
                                         onClick = { if (account != null) onNavigateToReconciliation(account.id) },
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                        shape = RoundedCornerShape(8.dp)
+                                        shape = RoundedCornerShape(10.dp)
                                     ) {
                                         Text("بررسی اختلاف", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                     }
@@ -386,7 +406,7 @@ fun AccountDetailScreen(
                             when {
                                 !state.hasSnapshots -> {
                                     Text(
-                                        text = "هنوز اسنپ‌شات پیامکی ثبت نشده است؛ برای تراز دستی و ایزوله موجودی با بانک لمس کنید.",
+                                        text = "برای بررسی یا تنظیم دستی موجودی با مانده بانک لمس کنید.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -396,7 +416,7 @@ fun AccountDetailScreen(
                                         DateFormatter.formatDate(it.smsDate)
                                     } ?: ""
                                     Text(
-                                        text = "✅ مانده با بانک همخوان است — آخرین بررسی: $jalaliDate",
+                                        text = "مانده با بانک همخوان است — آخرین بررسی: $jalaliDate",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -409,7 +429,7 @@ fun AccountDetailScreen(
                                     val bankBalStr = AmountFormatter.format(state.latestSnapshot?.balance ?: 0L)
                                     val appBalStr = AmountFormatter.format(state.appBalanceAtSnapshot)
                                     Text(
-                                        text = "⚠️ اختلاف $diffSign$diffStr با بانک (بانک: $bankBalStr / اپ: $appBalStr)",
+                                        text = "اختلاف $diffSign$diffStr با بانک (بانک: $bankBalStr / اپ: $appBalStr)",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.error

@@ -114,7 +114,11 @@ object WidgetBackgroundScanner {
                         patterns = patterns
                     )
                     val amt = parsed.amount
-                    val smsDate = parsed.date ?: date
+                    val smsDate = com.example.util.PatternMatcher.resolveReliableSmsTimestamp(
+                        parsedDate = parsed.date,
+                        smsText = body,
+                        receivedAt = date
+                    )
                     val txType = parsed.transactionType
 
                     if (amt != null && amt > 0L && txType != null) {
@@ -125,7 +129,8 @@ object WidgetBackgroundScanner {
                         val effectiveBankName = if (bankName.isNotBlank()) bankName else (senderAccount?.name ?: "")
                         val effectiveParsed = parsed.copy(
                             bankName = if (parsed.bankName.isNullOrBlank()) senderAccount?.name else parsed.bankName,
-                            accountIdentifier = if (parsed.accountIdentifier.isNullOrBlank()) (senderAccount?.cardNumber?.takeLast(4) ?: "") else parsed.accountIdentifier
+                            accountIdentifier = if (parsed.accountIdentifier.isNullOrBlank()) (senderAccount?.cardNumber?.takeLast(4) ?: "") else parsed.accountIdentifier,
+                            date = smsDate
                         )
 
                         val hash = SmsHashUtil.calculateHash(
@@ -201,7 +206,7 @@ object WidgetBackgroundScanner {
                 if (scannedUnregistered.isEmpty()) {
                     Toast.makeText(
                         context,
-                        "همه پیامک‌های ۷ روز گذشته قبلاً ثبت شده‌اند ✅",
+                        "همه پیامک‌های ۷ روز گذشته قبلاً ثبت شده‌اند",
                         Toast.LENGTH_SHORT
                     ).show()
                 } else {

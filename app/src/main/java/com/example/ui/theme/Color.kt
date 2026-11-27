@@ -2,44 +2,52 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary Colors
-val DarkGreenPrimary = Color(0xFF1B5E20)
-val DarkGreenGradientEnd = Color(0xFF2E7D32)
-val DarkGreenPrimaryContainer = Color(0xFFA5D6A7)
+// Brand Emerald & Forest Palette
+val DarkGreenPrimary = Color(0xFF145A32)
+val DarkGreenGradientEnd = Color(0xFF1E7E45)
+val DarkGreenDeep = Color(0xFF0B3B21)
+val DarkGreenPrimaryContainer = Color(0xFFD4EDDA)
 val DarkGreenOnPrimary = Color(0xFFFFFFFF)
+val DarkGreenOnPrimaryContainer = Color(0xFF0A361C)
 
-val DarkGreenDarkPrimary = Color(0xFF81C784)
-val DarkGreenDarkPrimaryContainer = Color(0xFF2E7D32)
-val DarkGreenDarkOnPrimary = Color(0xFF003300)
+val DarkGreenDarkPrimary = Color(0xFF6DD59B)
+val DarkGreenDarkPrimaryContainer = Color(0xFF174A2D)
+val DarkGreenDarkOnPrimary = Color(0xFF003318)
+val DarkGreenDarkOnPrimaryContainer = Color(0xFFD4EDDA)
 
-// Transaction Colors (High Visibility)
-val ExpenseColor = Color(0xFFD32F2F) // Crisp red
-val IncomeColor = Color(0xFF2E7D32)  // Crisp green
-val TransferColor = Color(0xFF1976D2) // Crisp blue
+// Warm Brand Gold Accent (aligned with JeebBan launcher emblem)
+val BrandGold = Color(0xFFC89B3C)
+val BrandGoldLight = Color(0xFFF3D999)
+val BrandGoldDark = Color(0xFFE6BE6A)
 
-// Dark Mode Transaction Colors (Vibrant & Legible)
-val ExpenseColorDark = Color(0xFFEF5350)
-val IncomeColorDark = Color(0xFF66BB6A)
-val TransferColorDark = Color(0xFF42A5F5)
+// Semantic Transaction & Status Colors
+val ExpenseColor = Color(0xFFC62828)
+val IncomeColor = Color(0xFF1B7A43)
+val TransferColor = Color(0xFF1565C0)
+val WarningColor = Color(0xFFD97706)
 
-// Light Palette (Optimized for WCAG AAA Readability)
-val LightBackground = Color(0xFFF7F9F7) // Clean soft background
-val LightSurface = Color(0xFFFFFFFF)    // Pure white cards
-val LightOnBackground = Color(0xFF1A1C1A) // High contrast dark text
-val LightOnSurface = Color(0xFF1A1C1A)
-val LightSurfaceVariant = Color(0xFFE8EFE8)
-val LightOnSurfaceVariant = Color(0xFF424843) // Crisp secondary text (contrast > 7:1)
-val LightOutline = Color(0xFFCBD3CC)
-val LightOutlineVariant = Color(0xFFE1E8E2)
+// Dark Mode Semantic Colors (Vibrant & Comfortable on AMOLED)
+val ExpenseColorDark = Color(0xFFF06A6A)
+val IncomeColorDark = Color(0xFF66D195)
+val TransferColorDark = Color(0xFF64B5F6)
+val WarningColorDark = Color(0xFFF5B041)
 
-// Dark Palette (Optimized for AMOLED & Zero Eye Strain)
-val DarkBackground = Color(0xFF101311) // Deep battery-friendly dark
-val DarkSurface = Color(0xFF1A201B)    // Distinct elevated card surface
-val DarkOnBackground = Color(0xFFE2E6E2) // Soft white (no harsh glare)
-val DarkOnSurface = Color(0xFFE2E6E2)
-val DarkSurfaceVariant = Color(0xFF262E27)
-val DarkOnSurfaceVariant = Color(0xFFC3CBC4) // Clear legible secondary text
-val DarkOutline = Color(0xFF3F4840)
-val DarkOutlineVariant = Color(0xFF2C342E)
+// Light Palette (Warm stone-tinted neutral background, pure crisp cards)
+val LightBackground = Color(0xFFF6F7F5)
+val LightSurface = Color(0xFFFFFFFF)
+val LightOnBackground = Color(0xFF161A17)
+val LightOnSurface = Color(0xFF161A17)
+val LightSurfaceVariant = Color(0xFFEBEEEB)
+val LightOnSurfaceVariant = Color(0xFF525A54)
+val LightOutline = Color(0xFFC9D1CB)
+val LightOutlineVariant = Color(0xFFE3E7E4)
 
-
+// Dark Palette (Deep slate-emerald AMOLED neutral)
+val DarkBackground = Color(0xFF0E1210)
+val DarkSurface = Color(0xFF161C18)
+val DarkOnBackground = Color(0xFFE6EBE7)
+val DarkOnSurface = Color(0xFFE6EBE7)
+val DarkSurfaceVariant = Color(0xFF212924)
+val DarkOnSurfaceVariant = Color(0xFFB3BDB6)
+val DarkOutline = Color(0xFF3A443D)
+val DarkOutlineVariant = Color(0xFF27302A)

@@ -55,8 +55,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -83,10 +81,12 @@ import com.example.data.local.relation.GroupExpenseWithShares
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
+import com.example.ui.components.AppSegmentedControl
 import com.example.ui.components.EmptyState
 import com.example.ui.components.PersianAmountVisualTransformation
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
+import com.example.ui.components.subtleCardBorder
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.incomeColor
 import com.example.util.AmountFormatter
 import com.example.util.DateFormatter
 import com.example.util.NumberToWords
@@ -153,35 +153,16 @@ fun GroupExpensesScreen(
                 totalSettled = state.totalSettledAmount
             )
 
-            // Primary Tabs: صورت‌حساب افراد (Item 1) vs لیست تمام هزینه‌ها
-            TabRow(
-                selectedTabIndex = state.selectedTab,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            ) {
-                Tab(
-                    selected = state.selectedTab == 0,
-                    onClick = { viewModel.setSelectedTab(0) },
-                    text = {
-                        Text(
-                            "صورت‌حساب افراد (${state.personSummaries.size})".toPersianDigits(),
-                            fontWeight = if (state.selectedTab == 0) FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
-                )
-                Tab(
-                    selected = state.selectedTab == 1,
-                    onClick = { viewModel.setSelectedTab(1) },
-                    text = {
-                        Text(
-                            "لیست هزینه‌ها",
-                            fontWeight = if (state.selectedTab == 1) FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
-                )
-            }
+            // Primary Segmented Control: صورت‌حساب افراد vs لیست هزینه‌ها
+            AppSegmentedControl(
+                items = listOf(
+                    "صورت‌حساب افراد (${state.personSummaries.size})".toPersianDigits(),
+                    "لیست هزینه‌ها"
+                ),
+                selectedIndex = state.selectedTab,
+                onSelect = { viewModel.setSelectedTab(it) },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+            )
 
             // Person / Expense Search Bar
             OutlinedTextField(
@@ -327,7 +308,7 @@ fun GroupExpensesScreen(
                 Icon(
                     imageVector = Icons.Default.RadioButtonUnchecked,
                     contentDescription = null,
-                    tint = ExpenseColor,
+                    tint = MaterialTheme.expenseColor,
                     modifier = Modifier.size(32.dp)
                 )
             },
@@ -348,7 +329,7 @@ fun GroupExpensesScreen(
             confirmButton = {
                 Button(
                     onClick = { viewModel.confirmUnsettleShare() },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseColor),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.expenseColor),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text("لغو تسویه")
@@ -380,10 +361,12 @@ fun PersonDebtCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
             .clickable { expanded = !expanded },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = subtleCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -444,7 +427,7 @@ fun PersonDebtCard(
                         text = AmountFormatter.formatAmountWithCurrency(person.totalDebt),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = ExpenseColor
+                        color = MaterialTheme.expenseColor
                     )
                 }
             }
@@ -560,7 +543,7 @@ fun PersonDebtCard(
                                         text = AmountFormatter.formatAmountWithCurrency(dong.amount),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = ExpenseColor
+                                        color = MaterialTheme.expenseColor
                                     )
 
                                     OutlinedButton(
@@ -660,7 +643,7 @@ fun ThreeModeSettleDialog(
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = IncomeColor,
+                    tint = MaterialTheme.incomeColor,
                     modifier = Modifier.size(36.dp)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
@@ -856,7 +839,7 @@ fun ThreeModeSettleDialog(
                                         Text(
                                             text = status,
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = if (status.startsWith("تسویه")) IncomeColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = if (status.startsWith("تسویه")) MaterialTheme.incomeColor else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -919,7 +902,7 @@ fun ThreeModeSettleDialog(
                 onClick = onConfirm,
                 enabled = isConfirmEnabled,
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = IncomeColor)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.incomeColor)
             ) {
                 Text("تأیید تسویه", fontWeight = FontWeight.Bold)
             }
@@ -991,9 +974,10 @@ fun GroupExpenseSummaryHeader(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = subtleCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1039,7 +1023,7 @@ fun GroupExpenseSummaryHeader(
                 text = AmountFormatter.formatAmountWithCurrency(totalPending),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = if (totalPending > 0) ExpenseColor else MaterialTheme.colorScheme.primary
+                color = if (totalPending > 0) MaterialTheme.expenseColor else MaterialTheme.colorScheme.primary
             )
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -1057,7 +1041,7 @@ fun GroupExpenseSummaryHeader(
                     text = AmountFormatter.formatAmountWithCurrency(totalSettled),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
-                    color = IncomeColor
+                    color = MaterialTheme.incomeColor
                 )
             }
         }
@@ -1081,11 +1065,15 @@ fun GroupExpenseCard(
     val pendingCount = expense.shares.count { !it.isSettled }
     val allSettled = expense.shares.isNotEmpty() && pendingCount == 0
 
+    val incomeTint = MaterialTheme.incomeColor
+    val expenseTint = MaterialTheme.expenseColor
+
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = subtleCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1120,16 +1108,16 @@ fun GroupExpenseCard(
                     )
                     if (allSettled) {
                         Text(
-                            text = "کاملاً تسویه‌شده ✓",
+                            text = "کاملاً تسویه‌شده",
                             style = MaterialTheme.typography.labelSmall,
-                            color = IncomeColor,
+                            color = incomeTint,
                             fontWeight = FontWeight.Bold
                         )
                     } else {
                         Text(
                             text = "$pendingCount دنگ باز".toPersianDigits(),
                             style = MaterialTheme.typography.labelSmall,
-                            color = ExpenseColor
+                            color = expenseTint
                         )
                     }
                 }
@@ -1177,18 +1165,18 @@ fun GroupExpenseCard(
                                     modifier = Modifier
                                         .heightIn(min = 40.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(IncomeColor.copy(alpha = 0.12f))
+                                        .background(incomeTint.copy(alpha = 0.12f))
                                         .clickable { onUnsettleShare(share) }
                                         .padding(horizontal = 10.dp, vertical = 6.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CheckCircle,
                                         contentDescription = null,
-                                        tint = IncomeColor,
+                                        tint = incomeTint,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("تسویه‌شده", fontSize = 12.sp, color = IncomeColor, fontWeight = FontWeight.Bold)
+                                    Text("تسویه‌شده", fontSize = 12.sp, color = incomeTint, fontWeight = FontWeight.Bold)
                                 }
                             } else {
                                 Button(

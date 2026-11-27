@@ -8,6 +8,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -27,7 +29,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -44,13 +45,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
+import com.example.R
+import com.example.ui.theme.goldAccent
 import com.example.util.BiometricAuthStatus
 import com.example.util.BiometricHelper
 
@@ -69,20 +74,19 @@ fun AppLockScreen(
     val activity = remember(context) { context.findFragmentActivity() }
     var authErrorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Block back press so user cannot bypass lock screen; move app to background instead.
     BackHandler(enabled = true) {
         activity?.moveTaskToBack(true)
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val scale by infiniteTransition.animateFloat(
+    val infiniteTransition = rememberInfiniteTransition(label = "lockHalo")
+    val haloScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.08f,
+        targetValue = 1.06f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200),
+            animation = tween(1800),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "scale"
+        label = "haloScale"
     )
 
     fun requestAuth() {
@@ -100,7 +104,7 @@ fun AppLockScreen(
         BiometricHelper.authenticate(
             activity = hostActivity,
             title = "ورود به جیب‌بان",
-            subtitle = "برای دسترسی به اطلاعات مالی، اثر انگشت یا رمز دستگاه را وارد کنید",
+            subtitle = "برای ورود، هویت خود را تایید کنید",
             onSuccess = {
                 authErrorMessage = null
                 onUnlock()
@@ -119,7 +123,6 @@ fun AppLockScreen(
         modifier = modifier
             .fillMaxSize()
             .testTag("app_lock_screen")
-            // Consume all pointer events so underlying UI cannot be interacted with while locked
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -136,48 +139,57 @@ fun AppLockScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 480.dp)
+                    .widthIn(max = 460.dp)
                     .padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Animated Icon Box
+                // Branded JeebBan emblem with subtle breathing emerald-gold halo
                 Box(
-                    modifier = Modifier
-                        .size(110.dp)
-                        .scale(scale)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(132.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = "قفل برنامه",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(54.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(124.dp)
+                            .scale(haloScale)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
                     )
+                    Surface(
+                        modifier = Modifier.size(92.dp),
+                        shape = RoundedCornerShape(26.dp),
+                        border = BorderStroke(1.5.dp, MaterialTheme.goldAccent.copy(alpha = 0.55f)),
+                        shadowElevation = 6.dp
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.jeebban_launcher_icon),
+                            contentDescription = "لوگوی جیب‌بان",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "جیب‌بان قفل است",
+                    text = "جیب‌بان",
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "برای حفظ امنیت و حریم خصوصی اطلاعات مالی شما، لطفاً قفل برنامه را باز کنید.",
+                    text = "برای ورود، هویت خود را تایید کنید",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(36.dp))
 
                 Button(
                     onClick = { requestAuth() },
@@ -193,12 +205,12 @@ fun AppLockScreen(
                     Icon(
                         imageVector = Icons.Default.Fingerprint,
                         contentDescription = null,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "بازگشایی با اثر انگشت یا رمز",
-                        fontSize = 16.sp,
+                        text = "ورود با اثر انگشت یا رمز",
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }

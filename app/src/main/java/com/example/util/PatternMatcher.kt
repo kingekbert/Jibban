@@ -14,6 +14,12 @@ object PatternMatcher {
     private val gson = Gson()
     private val fieldListType = object : TypeToken<List<ExtractedField>>() {}.type
 
+    const val MAX_FUTURE_DRIFT_MS: Long = 24L * 60L * 60L * 1000L
+    const val MIN_VALID_SMS_TIMESTAMP_MS: Long = 1546300800000L // 2019-01-01T00:00:00Z
+    private const val MIN_VALID_JALALI_YEAR = 1390
+    private const val ONE_DAY_MS: Long = 24L * 60L * 60L * 1000L
+    private const val THIRTY_DAYS_MS: Long = 30L * ONE_DAY_MS
+
     fun match(smsText: String, patterns: List<SmsPatternEntity>): ParsedSms? {
         if (smsText.isBlank() || patterns.isEmpty()) return null
 
@@ -107,13 +113,14 @@ object PatternMatcher {
                     FieldType.DATE_YEAR -> {
                         val digits = convertToEnglish(currentToken.text).filter { it.isDigit() }
                         val rawYear = digits.toIntOrNull()
+                        val currentJalaliYear = JalaliDate.today().year
                         val normalizedYear = when {
                             rawYear == null -> null
-                            digits.length == 2 -> rawYear + 1400
+                            digits.length == 2 -> if (rawYear >= 90) 1300 + rawYear else 1400 + rawYear
                             digits.length == 4 -> rawYear
                             else -> null
                         }
-                        if (normalizedYear != null && normalizedYear in 1300..1500) {
+                        if (normalizedYear != null && normalizedYear in MIN_VALID_JALALI_YEAR..(currentJalaliYear + 1)) {
                             yearStr = normalizedYear.toString()
                         } else {
                             hasMatchingFailure = true
@@ -186,7 +193,9 @@ object PatternMatcher {
 
             // Strict requirements: amount > 0, transaction type non-null, valid date
             if (amount != null && amount > 0L && txType != null && hasDateFields) {
-                val timestamp = parseDateTimeToTimestamp(
+                val nowMs = System.currentTimeMillis()
+                val maxValidTs = nowMs + MAX_FUTURE_DRIFT_MS
+                val patternTimestamp = parseDateTimeToTimestamp(
                     dateStr = dateStr,
                     timeStr = timeStr,
                     hourStr = hourStr,
@@ -195,8 +204,21 @@ object PatternMatcher {
                     monthStr = monthStr,
                     dayStr = dayStr
                 )
+                val textTimestamp = extractDateTimeFromText(smsText, nowMs)
+                val patternHasFullDate = !dateStr.isNullOrBlank() ||
+                    (!monthStr.isNullOrBlank() && !dayStr.isNullOrBlank())
+                val patternTsValid = patternTimestamp != null &&
+                    patternTimestamp in MIN_VALID_SMS_TIMESTAMP_MS..maxValidTs
 
-                if (timestamp != null) {
+                val finalTimestamp = when {
+                    !patternTsValid -> textTimestamp
+                    textTimestamp != null && !patternHasFullDate -> textTimestamp
+                    textTimestamp != null && kotlin.math.abs(patternTimestamp!! - textTimestamp) > ONE_DAY_MS -> textTimestamp
+                    textTimestamp != null && hourStr == null && minStr == null && timeStr.isNullOrBlank() -> textTimestamp
+                    else -> patternTimestamp
+                }
+
+                if (finalTimestamp != null && finalTimestamp in MIN_VALID_SMS_TIMESTAMP_MS..maxValidTs) {
                     val textBalance = extractBalanceFromText(smsText)
                     val finalBalance = when {
                         balance == null -> textBalance
@@ -208,7 +230,7 @@ object PatternMatcher {
                         bankName = bankName ?: pattern.bankName ?: "بانک",
                         transactionType = txType,
                         amount = amount,
-                        date = timestamp,
+                        date = finalTimestamp,
                         accountIdentifier = accountIdent ?: pattern.accountIdentifier.ifBlank { null },
                         rawDescription = description ?: (if (txType == TransactionType.INCOME) "واریز" else "برداشت"),
                         balance = finalBalance
@@ -250,6 +272,175 @@ object PatternMatcher {
             return if (isToman) parsed * 10L else parsed
         }
         return null
+    }
+
+    private val FULL_JALALI_DATE_TIME_REGEX = Regex(
+        """(?<![\d/])(1[34]\d{2})[/\-](\d{1,2})[/\-](\d{1,2})(?:\s*[-_,،]?\s*(?:ساعت\s*)?(\d{1,2}):(\d{2})(?::\d{2})?)?(?!\d)"""
+    )
+    private val SHORT_JALALI_DATE_TIME_REGEX = Regex(
+        """(?<![\d/])(\d{2})/(\d{1,2})/(\d{1,2})(?:\s*[-_,،]?\s*(?:ساعت\s*)?(\d{1,2}):(\d{2})(?::\d{2})?)?(?!\d)"""
+    )
+    private val MONTH_DAY_TIME_REGEX = Regex(
+        """(?<![\d/\-])(\d{1,2})/(\d{1,2})\s*[-_,،\s]\s*(?:ساعت\s*)?(\d{1,2}):(\d{2})(?::\d{2})?(?!\d)"""
+    )
+    private val COMPACT_MMDD_TIME_REGEX = Regex(
+        """(?<![\d/\-])(0[1-9]|1[0-2])([0-2]\d|3[01])[_\-](\d{1,2}):(\d{2})(?::\d{2})?(?!\d)"""
+    )
+    private val STANDALONE_TIME_REGEX = Regex(
+        """(?<!\d)(\d{1,2}):(\d{2})(?::\d{2})?(?!\d)"""
+    )
+
+    /**
+     * Directly extracts a validated Jalali date/time timestamp from raw Persian bank SMS text.
+     * Rejects impossible calendar dates and future timestamps beyond [MAX_FUTURE_DRIFT_MS].
+     */
+    fun extractDateTimeFromText(
+        smsText: String,
+        nowMs: Long = System.currentTimeMillis()
+    ): Long? {
+        if (smsText.isBlank()) return null
+        val normalized = convertToEnglish(smsText)
+            .replace('ي', 'ی')
+            .replace('ك', 'ک')
+            .replace('\u200C', ' ')
+
+        val currentJalali = JalaliDate.fromTimestamp(nowMs)
+        val maxValidTs = nowMs + MAX_FUTURE_DRIFT_MS
+
+        fun findFallbackTime(): Pair<Int, Int> {
+            val tm = STANDALONE_TIME_REGEX.find(normalized) ?: return 0 to 0
+            val h = tm.groupValues[1].toIntOrNull() ?: return 0 to 0
+            val m = tm.groupValues[2].toIntOrNull() ?: return 0 to 0
+            return if (h in 0..23 && m in 0..59) h to m else 0 to 0
+        }
+
+        fun buildValidatedTimestamp(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long? {
+            if (year !in MIN_VALID_JALALI_YEAR..(currentJalali.year + 1)) return null
+            if (month !in 1..12) return null
+            val maxDay = JalaliDate.getJalaliMonthLength(year, month)
+            if (day !in 1..maxDay) return null
+            if (hour !in 0..23 || minute !in 0..59) return null
+            return try {
+                val (gY, gM, gD) = JalaliDate.jalaliToGregorian(year, month, day)
+                val ts = LocalDateTime.of(gY, gM, gD, hour, minute)
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+                if (ts in MIN_VALID_SMS_TIMESTAMP_MS..maxValidTs) ts else null
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        // 1. Explicit 4-digit Jalali date: YYYY/M/D[-H:MM]
+        for (match in FULL_JALALI_DATE_TIME_REGEX.findAll(normalized)) {
+            val y = match.groupValues[1].toIntOrNull() ?: continue
+            val m = match.groupValues[2].toIntOrNull() ?: continue
+            val d = match.groupValues[3].toIntOrNull() ?: continue
+            val (h, min) = if (match.groupValues[4].isNotBlank() && match.groupValues[5].isNotBlank()) {
+                (match.groupValues[4].toIntOrNull() ?: 0) to (match.groupValues[5].toIntOrNull() ?: 0)
+            } else {
+                findFallbackTime()
+            }
+            val ts = buildValidatedTimestamp(y, m, d, h, min)
+            if (ts != null) return ts
+        }
+
+        // 2. Explicit 2-digit Jalali date: YY/M/D[-H:MM]
+        for (match in SHORT_JALALI_DATE_TIME_REGEX.findAll(normalized)) {
+            val yy = match.groupValues[1].toIntOrNull() ?: continue
+            val y = if (yy >= 90) 1300 + yy else 1400 + yy
+            val m = match.groupValues[2].toIntOrNull() ?: continue
+            val d = match.groupValues[3].toIntOrNull() ?: continue
+            val (h, min) = if (match.groupValues[4].isNotBlank() && match.groupValues[5].isNotBlank()) {
+                (match.groupValues[4].toIntOrNull() ?: 0) to (match.groupValues[5].toIntOrNull() ?: 0)
+            } else {
+                findFallbackTime()
+            }
+            val ts = buildValidatedTimestamp(y, m, d, h, min)
+            if (ts != null) return ts
+        }
+
+        // 3. Month/Day + Time: M/D-H:MM (year inferred, rolled back 1 year across Nowruz)
+        for (match in MONTH_DAY_TIME_REGEX.findAll(normalized)) {
+            val m = match.groupValues[1].toIntOrNull() ?: continue
+            val d = match.groupValues[2].toIntOrNull() ?: continue
+            val h = match.groupValues[3].toIntOrNull() ?: continue
+            val min = match.groupValues[4].toIntOrNull() ?: continue
+            val tsCurrent = buildValidatedTimestamp(currentJalali.year, m, d, h, min)
+            if (tsCurrent != null) return tsCurrent
+            val tsPrev = buildValidatedTimestamp(currentJalali.year - 1, m, d, h, min)
+            if (tsPrev != null) return tsPrev
+        }
+
+        // 4. Compact MMDD-HH:MM or MMDD_HH:MM (e.g. 0706-21:05)
+        for (match in COMPACT_MMDD_TIME_REGEX.findAll(normalized)) {
+            val m = match.groupValues[1].toIntOrNull() ?: continue
+            val d = match.groupValues[2].toIntOrNull() ?: continue
+            val h = match.groupValues[3].toIntOrNull() ?: continue
+            val min = match.groupValues[4].toIntOrNull() ?: continue
+            val tsCurrent = buildValidatedTimestamp(currentJalali.year, m, d, h, min)
+            if (tsCurrent != null) return tsCurrent
+            val tsPrev = buildValidatedTimestamp(currentJalali.year - 1, m, d, h, min)
+            if (tsPrev != null) return tsPrev
+        }
+
+        return null
+    }
+
+    /**
+     * Resolves a trustworthy SMS timestamp by cross-checking [parsedDate], the explicit date in
+     * [smsText], and the carrier [receivedAt] timestamp, while strictly rejecting future dates.
+     */
+    fun resolveReliableSmsTimestamp(
+        parsedDate: Long?,
+        smsText: String,
+        receivedAt: Long,
+        nowMs: Long = System.currentTimeMillis()
+    ): Long {
+        val maxValidTs = nowMs + MAX_FUTURE_DRIFT_MS
+        val hasValidReceivedAt = receivedAt in MIN_VALID_SMS_TIMESTAMP_MS..maxValidTs
+        val safeReceivedAt = if (hasValidReceivedAt) receivedAt else nowMs
+        val textDate = extractDateTimeFromText(smsText, nowMs)
+        val validParsed = parsedDate?.takeIf { it in MIN_VALID_SMS_TIMESTAMP_MS..maxValidTs }
+
+        val candidate = when {
+            textDate != null && validParsed != null -> {
+                if (kotlin.math.abs(validParsed - textDate) > ONE_DAY_MS) textDate else validParsed
+            }
+            validParsed != null -> validParsed
+            textDate != null -> textDate
+            else -> null
+        }
+
+        if (candidate != null) {
+            if (textDate == null && hasValidReceivedAt &&
+                kotlin.math.abs(candidate - safeReceivedAt) > THIRTY_DAYS_MS
+            ) {
+                return safeReceivedAt
+            }
+            return candidate
+        }
+        return safeReceivedAt
+    }
+
+    private fun isIgnoredOrUnset(field: ExtractedField): Boolean =
+        field.fieldType == null || field.fieldType == FieldType.IGNORE
+
+    private fun isTimeHourCandidate(field: ExtractedField): Boolean {
+        if (field.fieldType == FieldType.TIME_HOUR) return true
+        if (!isIgnoredOrUnset(field)) return false
+        val num = convertToEnglish(field.text.trim()).toIntOrNull() ?: return false
+        return num in 0..23
+    }
+
+    private fun isTimeMinuteCandidate(field: ExtractedField): Boolean {
+        if (field.fieldType == FieldType.TIME_MINUTE) return true
+        if (!isIgnoredOrUnset(field)) return false
+        val digits = convertToEnglish(field.text.trim())
+        if (digits.length != 2) return false
+        val num = digits.toIntOrNull() ?: return false
+        return num in 0..59
     }
 
     fun normalizeSavedFields(savedFields: List<ExtractedField>): List<ExtractedField> {
@@ -339,12 +530,12 @@ object PatternMatcher {
                     f4.lineIndex == f5.lineIndex
 
                 if (sameLine &&
-                    f0.fieldType == FieldType.TIME_HOUR &&
-                    f1.fieldType == FieldType.TIME_MINUTE &&
+                    isTimeHourCandidate(f0) &&
+                    isTimeMinuteCandidate(f1) &&
                     f2.fieldType == FieldType.DATE_YEAR &&
                     f3.fieldType == FieldType.DATE_MONTH &&
                     f4.fieldType == FieldType.DATE_DAY &&
-                    (f5.fieldType == null || f5.fieldType == FieldType.IGNORE) &&
+                    isIgnoredOrUnset(f5) &&
                     (f5.text.trim() == "-" || f5.text.trim() == "_")
                 ) {
                     result.add(f2)
@@ -360,10 +551,10 @@ object PatternMatcher {
                     f0.fieldType == FieldType.DATE_YEAR &&
                     f1.fieldType == FieldType.DATE_MONTH &&
                     f2.fieldType == FieldType.DATE_DAY &&
-                    (f3.fieldType == null || f3.fieldType == FieldType.IGNORE) &&
+                    isIgnoredOrUnset(f3) &&
                     (f3.text.trim() == "-" || f3.text.trim() == "_") &&
-                    f4.fieldType == FieldType.TIME_HOUR &&
-                    f5.fieldType == FieldType.TIME_MINUTE
+                    isTimeHourCandidate(f4) &&
+                    isTimeMinuteCandidate(f5)
                 ) {
                     result.add(f0)
                     result.add(f1)
@@ -390,11 +581,11 @@ object PatternMatcher {
                     f3.lineIndex == f4.lineIndex
 
                 if (sameLine &&
-                    f0.fieldType == FieldType.TIME_HOUR &&
-                    f1.fieldType == FieldType.TIME_MINUTE &&
+                    isTimeHourCandidate(f0) &&
+                    isTimeMinuteCandidate(f1) &&
                     f2.fieldType == FieldType.DATE_MONTH &&
                     f3.fieldType == FieldType.DATE_DAY &&
-                    (f4.fieldType == null || f4.fieldType == FieldType.IGNORE) &&
+                    isIgnoredOrUnset(f4) &&
                     (f4.text.trim() == "-" || f4.text.trim() == "_")
                 ) {
                     result.add(f2)
@@ -408,10 +599,10 @@ object PatternMatcher {
                 if (sameLine &&
                     f0.fieldType == FieldType.DATE_MONTH &&
                     f1.fieldType == FieldType.DATE_DAY &&
-                    (f2.fieldType == null || f2.fieldType == FieldType.IGNORE) &&
+                    isIgnoredOrUnset(f2) &&
                     (f2.text.trim() == "-" || f2.text.trim() == "_") &&
-                    f3.fieldType == FieldType.TIME_HOUR &&
-                    f4.fieldType == FieldType.TIME_MINUTE
+                    isTimeHourCandidate(f3) &&
+                    isTimeMinuteCandidate(f4)
                 ) {
                     result.add(f0)
                     result.add(f1)
@@ -524,7 +715,9 @@ object PatternMatcher {
                 }
             }
 
-            val (gY, gM, gD) = JalaliDate.jalaliToGregorian(jYear, jMonth.coerceIn(1, 12), jDay.coerceIn(1, 31))
+            val clampedMonth = jMonth.coerceIn(1, 12)
+            val maxDay = JalaliDate.getJalaliMonthLength(jYear, clampedMonth)
+            val (gY, gM, gD) = JalaliDate.jalaliToGregorian(jYear, clampedMonth, jDay.coerceIn(1, maxDay))
             return LocalDateTime.of(gY, gM, gD, hour.coerceIn(0, 23), min.coerceIn(0, 59))
                 .atZone(ZoneId.systemDefault())
                 .toInstant()

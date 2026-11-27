@@ -68,10 +68,12 @@ import com.example.data.local.entity.SavingsEntryType
 import com.example.data.local.entity.SavingsGoalEntity
 import com.example.data.local.relation.SavingsGoalWithDetails
 import com.example.ui.components.EmptyState
+import com.example.ui.components.StatusPill
 import com.example.ui.components.rememberAnimatedAmount
 import com.example.ui.components.rememberAnimatedProgress
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
+import com.example.ui.components.subtleCardBorder
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.incomeColor
 import com.example.util.AmountFormatter
 import com.example.util.DateFormatter
 import com.example.util.toPersianDigits
@@ -285,7 +287,7 @@ fun SavingsGoalsScreen(
                         viewModel.delete(goal)
                         goalToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseColor)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.expenseColor)
                 ) {
                     Text("حذف")
                 }
@@ -319,13 +321,17 @@ fun SavingsGoalCard(
     val remaining = (goal.targetAmount - currentAmount).coerceAtLeast(0L)
     val accentColor = Color(goal.color)
 
+    val incomeTint = MaterialTheme.incomeColor
+    val expenseTint = MaterialTheme.expenseColor
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
+        border = subtleCardBorder(),
         colors = CardDefaults.cardColors(
-            containerColor = if (isCompleted) IncomeColor.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
+            containerColor = if (isCompleted) incomeTint.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -417,7 +423,7 @@ fun SavingsGoalCard(
                         text = AmountFormatter.format(currentAmount),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (isCompleted) IncomeColor else MaterialTheme.colorScheme.primary
+                        color = if (isCompleted) incomeTint else MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -445,7 +451,7 @@ fun SavingsGoalCard(
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp)),
-                color = if (isCompleted) IncomeColor else accentColor,
+                color = if (isCompleted) incomeTint else accentColor,
                 trackColor = accentColor.copy(alpha = 0.15f)
             )
 
@@ -454,24 +460,15 @@ fun SavingsGoalCard(
             // Progress Text / Completed Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 if (isCompleted) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = IncomeColor,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "تبریک! این هدف محقق‌شده است 🎉",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = IncomeColor,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    StatusPill(
+                        text = "هدف محقق شد",
+                        icon = Icons.Default.CheckCircle,
+                        tint = incomeTint
+                    )
                 } else {
                     Text(
                         text = "مانده تا هدف: ${AmountFormatter.format(remaining)}",
@@ -484,7 +481,7 @@ fun SavingsGoalCard(
                     text = "${(progress * 100).toInt()}٪".toPersianDigits(),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = if (isCompleted) IncomeColor else accentColor
+                    color = if (isCompleted) incomeTint else accentColor
                 )
             }
 
@@ -498,8 +495,8 @@ fun SavingsGoalCard(
                 Button(
                     onClick = onDeposit,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = IncomeColor)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = incomeTint)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
@@ -510,9 +507,9 @@ fun SavingsGoalCard(
                     OutlinedButton(
                         onClick = onWithdraw,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("برداشت از پس‌انداز", color = ExpenseColor, fontWeight = FontWeight.Bold)
+                        Text("برداشت از پس‌انداز", color = expenseTint, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -568,7 +565,7 @@ fun SavingsGoalCard(
                                         text = if (entry.type == SavingsEntryType.DEPOSIT) "واریز" else "برداشت",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (entry.type == SavingsEntryType.DEPOSIT) IncomeColor else ExpenseColor
+                                        color = if (entry.type == SavingsEntryType.DEPOSIT) incomeTint else expenseTint
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
@@ -581,7 +578,7 @@ fun SavingsGoalCard(
                                     text = (if (entry.type == SavingsEntryType.DEPOSIT) "+ " else "- ") + AmountFormatter.format(entry.amount),
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (entry.type == SavingsEntryType.DEPOSIT) IncomeColor else ExpenseColor
+                                    color = if (entry.type == SavingsEntryType.DEPOSIT) incomeTint else expenseTint
                                 )
                             }
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))

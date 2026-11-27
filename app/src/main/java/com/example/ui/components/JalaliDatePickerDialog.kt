@@ -494,8 +494,7 @@ private fun CalendarDaysGrid(
     val daysOfWeek = remember { listOf("ش", "ی", "د", "س", "چ", "پ", "ج") }
     val monthDaysCount = JalaliDate.getJalaliMonthLength(selectedYear, selectedMonth)
     val emptyCellsCount = JalaliDate.getFirstDayOfWeekInMonth(selectedYear, selectedMonth)
-    val totalCells = emptyCellsCount + monthDaysCount
-    val rows = remember(selectedYear, selectedMonth) { (0 until totalCells).chunked(7) }
+    val rows = remember { (0 until 42).chunked(7) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -526,14 +525,14 @@ private fun CalendarDaysGrid(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     rowIndices.forEachIndexed { colIndex, index ->
-                        if (index < emptyCellsCount) {
+                        val day = index - emptyCellsCount + 1
+                        if (day !in 1..monthDaysCount) {
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .aspectRatio(1f)
                             )
                         } else {
-                            val day = index - emptyCellsCount + 1
                             val isSelected = day == selectedDay
                             val isToday = selectedYear == todayJalali.year &&
                                 selectedMonth == todayJalali.month &&
@@ -573,14 +572,6 @@ private fun CalendarDaysGrid(
                                 )
                             }
                         }
-                    }
-                    val remainingInRow = 7 - rowIndices.size
-                    repeat(remainingInRow) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .aspectRatio(1f)
-                        )
                     }
                 }
             }

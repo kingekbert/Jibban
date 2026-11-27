@@ -1,7 +1,13 @@
 package com.example.ui.screens.dashboard
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,45 +35,41 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.AccountCard
+import com.example.ui.components.AppSurfaceCard
 import com.example.ui.components.BalanceCard
 import com.example.ui.components.EmptyState
 import com.example.ui.components.TransactionCard
 import com.example.ui.components.rememberAnimatedAmount
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
-import com.example.ui.theme.TransferColor
+import com.example.ui.components.subtleCardBorder
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.goldAccent
+import com.example.ui.theme.incomeColor
+import com.example.ui.theme.transferColor
 import com.example.util.AmountFormatter
+import com.example.util.DateFormatter
 
 @Composable
 fun DashboardScreen(
@@ -87,44 +89,65 @@ fun DashboardScreen(
     val recentTransactions = remember(summary.recentTransactions) {
         summary.recentTransactions.take(5)
     }
+    val todayJalaliLabel = remember {
+        DateFormatter.formatLong(System.currentTimeMillis())
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // App Header (Top Bar with only Settings icon)
+        // Brand Header with today's Jalali date
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "جیب‌بان",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                IconButton(
-                    onClick = onNavigateToSettings,
-                    modifier = Modifier.testTag("dashboard_settings_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "تنظیمات",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                Column {
+                    Text(
+                        text = "جیب‌بان",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
                     )
+                    Text(
+                        text = todayJalaliLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = subtleCardBorder()
+                ) {
+                    IconButton(
+                        onClick = onNavigateToSettings,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .testTag("dashboard_settings_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "تنظیمات",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
                 }
             }
         }
 
-        // Total Balance
+        // Hero Balance Card
         item {
             BalanceCard(totalBalance = summary.totalBalance)
         }
 
-        // Today Summary Cards
+        // Today Summary Cards (semantic theme colors + hairline borders)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -133,44 +156,40 @@ fun DashboardScreen(
                 TodaySummaryCard(
                     title = "درآمد امروز",
                     amount = summary.todayIncome,
-                    color = IncomeColor,
+                    color = MaterialTheme.incomeColor,
                     isIncome = true,
                     modifier = Modifier.weight(1f)
                 )
                 TodaySummaryCard(
                     title = "هزینه امروز",
                     amount = summary.todayExpense,
-                    color = ExpenseColor,
+                    color = MaterialTheme.expenseColor,
                     isIncome = false,
                     modifier = Modifier.weight(1f)
                 )
             }
         }
 
-        // Quick Access (دسترسی سریع) 5 Direct Icons
+        // Quick Access (5 Direct Actions with cohesive brand palette)
         item {
-            Card(
+            AppSurfaceCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                shape = RoundedCornerShape(18.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .padding(horizontal = 12.dp, vertical = 14.dp)
                 ) {
                     Text(
                         text = "دسترسی سریع",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // 5 Direct Actions: ثبت هزینه | ثبت درآمد | انتقال | اسکن پیامک | ورود پیامک
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceAround
@@ -178,7 +197,7 @@ fun DashboardScreen(
                         QuickAccessItem(
                             title = "ثبت هزینه",
                             icon = Icons.AutoMirrored.Filled.TrendingDown,
-                            color = ExpenseColor,
+                            color = MaterialTheme.expenseColor,
                             onClick = { onNavigateToAddTransaction("EXPENSE") },
                             modifier = Modifier
                                 .weight(1f)
@@ -187,7 +206,7 @@ fun DashboardScreen(
                         QuickAccessItem(
                             title = "ثبت درآمد",
                             icon = Icons.AutoMirrored.Filled.TrendingUp,
-                            color = IncomeColor,
+                            color = MaterialTheme.incomeColor,
                             onClick = { onNavigateToAddTransaction("INCOME") },
                             modifier = Modifier
                                 .weight(1f)
@@ -196,7 +215,7 @@ fun DashboardScreen(
                         QuickAccessItem(
                             title = "انتقال",
                             icon = Icons.Default.SwapHoriz,
-                            color = TransferColor,
+                            color = MaterialTheme.transferColor,
                             onClick = onNavigateToTransfer,
                             modifier = Modifier
                                 .weight(1f)
@@ -205,7 +224,7 @@ fun DashboardScreen(
                         QuickAccessItem(
                             title = "اسکن پیامک",
                             icon = Icons.Default.Sms,
-                            color = Color(0xFF00ACC1),
+                            color = MaterialTheme.colorScheme.primary,
                             onClick = onNavigateToScanSms,
                             modifier = Modifier
                                 .weight(1f)
@@ -214,7 +233,7 @@ fun DashboardScreen(
                         QuickAccessItem(
                             title = "ورود پیامک",
                             icon = Icons.Default.ContentPaste,
-                            color = Color(0xFFE91E63),
+                            color = MaterialTheme.goldAccent,
                             onClick = onNavigateToImportSms,
                             modifier = Modifier
                                 .weight(1f)
@@ -239,16 +258,23 @@ fun DashboardScreen(
                         fontWeight = FontWeight.Bold
                     )
                     TextButton(onClick = onNavigateToAccounts) {
-                        Text("مشاهده همه", color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            text = "مشاهده همه",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 if (summary.accounts.isEmpty()) {
-                    Text(
-                        text = "هیچ حسابی تعریف نشده است",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    AppSurfaceCard(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "هنوز حسابی تعریف نشده است",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
                 } else {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -277,7 +303,11 @@ fun DashboardScreen(
                     fontWeight = FontWeight.Bold
                 )
                 TextButton(onClick = onNavigateToTransactions) {
-                    Text("مشاهده همه", color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        text = "مشاهده همه",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }
@@ -286,6 +316,7 @@ fun DashboardScreen(
             item(key = "empty_recent_transactions") {
                 EmptyState(
                     title = "هنوز تراکنشی ثبت نشده است",
+                    subtitle = "اولین هزینه یا درآمد خود را ثبت کنید.",
                     buttonText = "ثبت اولین تراکنش",
                     onButtonClick = { onNavigateToAddTransaction("EXPENSE") }
                 )
@@ -340,23 +371,23 @@ fun QuickAccessItem(
         Box(
             modifier = Modifier
                 .size(44.dp)
-                .clip(CircleShape)
-                .background(color.copy(alpha = 0.15f)),
+                .clip(RoundedCornerShape(14.dp))
+                .background(color.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
                 tint = color,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(21.dp)
             )
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.sp,
-                lineHeight = 13.sp
+                fontSize = 10.5.sp,
+                lineHeight = 14.sp
             ),
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
@@ -375,19 +406,11 @@ fun TodaySummaryCard(
     isIncome: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    AppSurfaceCard(
         modifier = modifier
             .fillMaxWidth()
-            .height(76.dp)
-            .shadow(
-                elevation = 2.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = color.copy(alpha = 0.2f)
-            ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            .height(74.dp),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -397,16 +420,16 @@ fun TodaySummaryCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(color.copy(alpha = 0.15f)),
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(color.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isIncome) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                     contentDescription = title,
                     tint = color,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
             Spacer(modifier = Modifier.width(10.dp))
@@ -425,7 +448,7 @@ fun TodaySummaryCard(
                 val animatedAmount = rememberAnimatedAmount(targetAmount = amount, durationMillis = 480)
                 Text(
                     text = AmountFormatter.format(animatedAmount),
-                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                    style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
                     fontWeight = FontWeight.Bold,
                     color = color,
                     maxLines = 1,
@@ -435,59 +458,3 @@ fun TodaySummaryCard(
         }
     }
 }
-
-@Composable
-fun QuickActionButton(
-    title: String,
-    color: Color,
-    icon: ImageVector,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.90f else 1.0f,
-        label = "quickActionScale"
-    )
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .padding(8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .shadow(
-                    elevation = 6.dp,
-                    shape = CircleShape,
-                    spotColor = color.copy(alpha = 0.5f)
-                )
-                .clip(CircleShape)
-                .background(color),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = Color.White,
-                modifier = Modifier.size(28.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-

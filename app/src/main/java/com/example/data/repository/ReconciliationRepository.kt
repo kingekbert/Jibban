@@ -43,13 +43,29 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
         database.accountDao().calculateAppBalanceAtDate(accountId, Long.MAX_VALUE)
     }
 
+    fun maxValidSnapshotTimestamp(): Long =
+        System.currentTimeMillis() + com.example.util.PatternMatcher.MAX_FUTURE_DRIFT_MS
+
+    suspend fun cleanupInvalidFutureSnapshots(accountId: Long? = null): Int = withContext(Dispatchers.IO) {
+        val maxValid = maxValidSnapshotTimestamp()
+        if (accountId != null) {
+            database.accountBalanceSnapshotDao().deleteFutureSnapshotsForAccount(accountId, maxValid)
+        } else {
+            database.accountBalanceSnapshotDao().deleteFutureSnapshots(maxValid)
+        }
+    }
+
     suspend fun recordSnapshot(
         accountId: Long,
         smsDate: Long,
         balance: Long,
         smsHash: String
     ): Long = withContext(Dispatchers.IO) {
-        if (balance < 0L || smsHash.isBlank()) return@withContext -1L
+        val maxValid = maxValidSnapshotTimestamp()
+        if (balance < 0L || smsHash.isBlank() || smsDate <= 0L || smsDate > maxValid) {
+            return@withContext -1L
+        }
+        database.accountBalanceSnapshotDao().deleteFutureSnapshotsForAccount(accountId, maxValid)
         val existing = database.accountBalanceSnapshotDao().getByHash(accountId, smsHash)
         if (existing != null) {
             if (existing.balance != balance || existing.smsDate != smsDate) {
@@ -73,7 +89,11 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
         unregisteredCandidates: List<ScannedSmsItem>
     ): ReconciliationDiagnosis? = withContext(Dispatchers.IO) {
         val account = database.accountDao().getAccountById(accountId) ?: return@withContext null
-        val snapshotsDesc = database.accountBalanceSnapshotDao().getListByAccountId(accountId)
+        val maxValid = maxValidSnapshotTimestamp()
+        database.accountBalanceSnapshotDao().deleteFutureSnapshotsForAccount(accountId, maxValid)
+        val snapshotsDesc = database.accountBalanceSnapshotDao()
+            .getListByAccountId(accountId)
+            .filter { it.smsDate in 1L..maxValid }
         val adjustmentsDesc = database.accountBalanceAdjustmentDao().getListByAccountId(accountId)
         val latestSnapshot = snapshotsDesc.firstOrNull()
         val currentAppBalance = database.accountDao().calculateAppBalanceAtDate(accountId, Long.MAX_VALUE)

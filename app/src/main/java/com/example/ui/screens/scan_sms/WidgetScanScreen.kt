@@ -562,7 +562,7 @@ private fun WidgetScanEmptyState(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "همه پیامک‌های ۷ روز گذشته ثبت شده‌اند ✅",
+            text = "همه پیامک‌های ۷ روز گذشته ثبت شده‌اند",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,

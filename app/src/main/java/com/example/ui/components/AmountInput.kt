@@ -1,25 +1,28 @@
 package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,9 +33,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
@@ -45,10 +51,10 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.VazirmatnFontFamily
 import com.example.util.AmountFormatter
 import com.example.util.NumberToWords
 import com.example.util.toEnglishDigits
-import com.example.util.toPersianDigits
 
 class PersianAmountVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
@@ -107,8 +113,18 @@ fun AmountInput(
     var rawText by remember(amount) {
         mutableStateOf(if (amount == 0L) "" else amount.toString())
     }
+    var isFocused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val haptic = LocalHapticFeedback.current
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) color else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
+        label = "amount_border"
+    )
+    val containerColor by animateColorAsState(
+        targetValue = if (isFocused) color.copy(alpha = 0.04f) else MaterialTheme.colorScheme.surface,
+        label = "amount_bg"
+    )
 
     LaunchedEffect(autoFocus) {
         if (autoFocus) {
@@ -119,120 +135,165 @@ fun AmountInput(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = rawText,
-            onValueChange = { newValue ->
-                val cleanDigits = newValue.toEnglishDigits().filter { it.isDigit() }
-                rawText = cleanDigits
-                val parsed = cleanDigits.toLongOrNull() ?: 0L
-                onAmountChange(parsed)
-            },
+        // Hero typographic amount entry surface
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .focusRequester(focusRequester),
-            shape = RoundedCornerShape(16.dp),
-            textStyle = TextStyle(
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = color
-            ),
-            placeholder = {
-                Text(
-                    text = "۰",
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            suffix = {
-                Text(
-                    text = currencyLabel,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = color
-                )
-            },
-            singleLine = true,
-            visualTransformation = remember { PersianAmountVisualTransformation() },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = color,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-            )
-        )
-
-        // نمایش زنده مبلغ به حروف مطابق با واحد واقعی فیلد (ریال)
-        AnimatedVisibility(
-            visible = amount != 0L,
-            enter = fadeIn(),
-            exit = fadeOut()
+                .clip(RoundedCornerShape(20.dp))
+                .clickable {
+                    try {
+                        focusRequester.requestFocus()
+                    } catch (_: Exception) {}
+                },
+            shape = RoundedCornerShape(20.dp),
+            color = containerColor,
+            border = BorderStroke(if (isFocused) 1.5.dp else 1.dp, borderColor)
         ) {
-            val wordsText = NumberToWords.convert(amount = amount, suffix = currencyLabel)
-
-            Surface(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = color.copy(alpha = 0.08f)
+                    .padding(horizontal = 16.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = wordsText,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = color,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (rawText.isEmpty()) {
+                            Text(
+                                text = "۰",
+                                fontFamily = VazirmatnFontFamily,
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                            )
+                        }
+                        BasicTextField(
+                            value = rawText,
+                            onValueChange = { newValue ->
+                                val cleanDigits = newValue.toEnglishDigits().filter { it.isDigit() }
+                                rawText = cleanDigits
+                                val parsed = cleanDigits.toLongOrNull() ?: 0L
+                                onAmountChange(parsed)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester)
+                                .onFocusChanged { isFocused = it.isFocused },
+                            textStyle = TextStyle(
+                                fontFamily = VazirmatnFontFamily,
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                textAlign = TextAlign.Center,
+                                color = color,
+                                fontFeatureSettings = "tnum"
+                            ),
+                            singleLine = true,
+                            cursorBrush = SolidColor(color),
+                            visualTransformation = remember { PersianAmountVisualTransformation() },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = color.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            text = currencyLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = color,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+
+                // Live amount in Persian words
+                AnimatedVisibility(
+                    visible = amount != 0L,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    val wordsText = NumberToWords.convert(amount = amount, suffix = currencyLabel)
+                    Text(
+                        text = wordsText,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 8.dp, start = 8.dp, end = 8.dp)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // ردیف کلید افزودن سه صفر (+۰۰۰) و پاک کردن با مکان متناسب
+        // Clean quick-append +000 and clear pill row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // کلید افزودن سه صفر (+۰۰۰)
-            AssistChip(
+            Surface(
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     val newAmount = if (amount == 0L) 1000L else amount * 1000L
                     rawText = newAmount.toString()
                     onAmountChange(newAmount)
                 },
-                label = {
-                    Text("+۰۰۰", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                },
-                shape = RoundedCornerShape(8.dp),
-                colors = AssistChipDefaults.assistChipColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
-                    labelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
+                border = subtleCardBorder(0.6f)
+            ) {
+                Text(
+                    text = "+۰۰۰",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                 )
-            )
+            }
 
-            // کلید پاک کردن
             if (amount > 0L) {
-                AssistChip(
+                Surface(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         rawText = ""
                         onAmountChange(0L)
                     },
-                    label = { Text("پاک کردن", fontSize = 11.sp, color = MaterialTheme.colorScheme.error) },
-                    shape = RoundedCornerShape(8.dp),
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-                        labelColor = MaterialTheme.colorScheme.error
-                    )
-                )
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "پاک کردن مبلغ",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "پاک کردن",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             }
         }
     }
 }
-

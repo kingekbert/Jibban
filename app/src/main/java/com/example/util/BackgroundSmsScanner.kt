@@ -134,7 +134,11 @@ object BackgroundSmsScanner {
                 )
 
                 val amt = parsed.amount
-                val smsDate = parsed.date ?: receivedDate
+                val smsDate = PatternMatcher.resolveReliableSmsTimestamp(
+                    parsedDate = parsed.date,
+                    smsText = body,
+                    receivedAt = receivedDate
+                )
                 val txType = parsed.transactionType
                 if (amt == null || amt <= 0L || txType == null) continue
 
@@ -147,6 +151,7 @@ object BackgroundSmsScanner {
                 val effectiveParsed = parsed.copy(
                     bankName = if (parsed.bankName.isNullOrBlank()) senderAccount?.name else parsed.bankName,
                     accountIdentifier = if (parsed.accountIdentifier.isNullOrBlank()) (senderAccount?.cardNumber?.takeLast(4) ?: "") else parsed.accountIdentifier,
+                    date = smsDate,
                     balance = extractedBalance
                 )
 
@@ -245,10 +250,17 @@ object BackgroundSmsScanner {
         val latestBal = latestWithBalance?.let {
             it.parsedSms.balance ?: PatternMatcher.extractBalanceFromText(it.rawText)
         }
+        val reliableLatestDate = latestWithBalance?.let {
+            PatternMatcher.resolveReliableSmsTimestamp(
+                parsedDate = it.parsedSms.date ?: it.date,
+                smsText = it.rawText,
+                receivedAt = it.receivedAt
+            )
+        } ?: 0L
         return AccountSmsInspectionResult(
             unregisteredCount = unregistered.size,
             latestBalance = latestBal,
-            latestSmsDate = latestWithBalance?.date ?: 0L,
+            latestSmsDate = reliableLatestDate,
             latestSmsHash = latestWithBalance?.smsHash ?: "",
             unregisteredItems = unregistered
         )

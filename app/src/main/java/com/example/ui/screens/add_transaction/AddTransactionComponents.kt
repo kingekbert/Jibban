@@ -53,8 +53,6 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -74,10 +72,11 @@ import androidx.compose.ui.unit.dp
 import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.GroupExpenseShareMode
 import com.example.data.local.entity.TransactionType
+import com.example.ui.components.AppSegmentedControl
 import com.example.ui.components.PersianAmountVisualTransformation
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
-import com.example.ui.theme.TransferColor
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.incomeColor
+import com.example.ui.theme.transferColor
 import com.example.util.AmountFormatter
 import com.example.util.toPersianDigits
 
@@ -88,9 +87,9 @@ internal fun TransactionTypeSegmentedSelector(
     modifier: Modifier = Modifier
 ) {
     val options = listOf(
-        Triple(TransactionType.EXPENSE, "هزینه", ExpenseColor),
-        Triple(TransactionType.INCOME, "درآمد", IncomeColor),
-        Triple(TransactionType.TRANSFER, "انتقال", TransferColor)
+        Triple(TransactionType.EXPENSE, "هزینه", MaterialTheme.expenseColor),
+        Triple(TransactionType.INCOME, "درآمد", MaterialTheme.incomeColor),
+        Triple(TransactionType.TRANSFER, "انتقال", MaterialTheme.transferColor)
     )
 
     Surface(
@@ -292,7 +291,7 @@ internal fun TransferAccountsCard(
                     Icon(
                         imageVector = Icons.Default.SwapVert,
                         contentDescription = "جابه‌جایی حساب مبدا و مقصد",
-                        tint = TransferColor
+                        tint = MaterialTheme.transferColor
                     )
                 }
             }
@@ -390,23 +389,15 @@ internal fun GroupExpenseSection(
                 exit = shrinkVertically() + fadeOut()
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TabRow(
-                        selectedTabIndex = if (state.groupShareMode == GroupExpenseShareMode.EQUAL) 0 else 1,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                    ) {
-                        Tab(
-                            selected = state.groupShareMode == GroupExpenseShareMode.EQUAL,
-                            onClick = { onSelectShareMode(GroupExpenseShareMode.EQUAL) },
-                            text = { Text("تقسیم مساوی") }
-                        )
-                        Tab(
-                            selected = state.groupShareMode == GroupExpenseShareMode.CUSTOM,
-                            onClick = { onSelectShareMode(GroupExpenseShareMode.CUSTOM) },
-                            text = { Text("سهم دلخواه") }
-                        )
-                    }
+                    AppSegmentedControl(
+                        items = listOf("تقسیم مساوی", "سهم دلخواه"),
+                        selectedIndex = if (state.groupShareMode == GroupExpenseShareMode.EQUAL) 0 else 1,
+                        onSelect = { idx ->
+                            onSelectShareMode(
+                                if (idx == 0) GroupExpenseShareMode.EQUAL else GroupExpenseShareMode.CUSTOM
+                            )
+                        }
+                    )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),

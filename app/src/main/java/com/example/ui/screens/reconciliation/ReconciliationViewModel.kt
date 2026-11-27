@@ -59,6 +59,7 @@ class ReconciliationViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
+                runCatching { reconciliationRepository.cleanupInvalidFutureSnapshots(accountId) }
                 val account = accountRepository.getAccountById(accountId).first()
                 val categories = try { categoryRepository.allCategories.first() } catch (e: Exception) { emptyList() }
                 val widgetCandidates = try { WidgetDataStore.getItems(appContext) } catch (e: Exception) { emptyList() }

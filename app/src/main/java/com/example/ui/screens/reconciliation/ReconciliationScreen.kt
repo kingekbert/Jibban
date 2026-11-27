@@ -80,8 +80,9 @@ import com.example.data.local.entity.AccountBalanceAdjustmentEntity
 import com.example.data.local.entity.CategoryEntity
 import com.example.data.local.entity.CategoryType
 import com.example.data.local.entity.TransactionType
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
+import com.example.ui.components.subtleCardBorder
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.incomeColor
 import com.example.util.AmountFormatter
 import com.example.util.DateFormatter
 import com.example.util.JalaliDate
@@ -187,7 +188,7 @@ fun ReconciliationScreen(
                                     color = when {
                                         state.unregisteredSmsCount > 0 -> MaterialTheme.colorScheme.tertiaryContainer
                                         !hasSnapshot -> MaterialTheme.colorScheme.primaryContainer
-                                        state.isSynced -> IncomeColor.copy(alpha = 0.15f)
+                                        state.isSynced -> MaterialTheme.incomeColor.copy(alpha = 0.15f)
                                         else -> MaterialTheme.colorScheme.errorContainer
                                     }
                                 ) {
@@ -201,7 +202,7 @@ fun ReconciliationScreen(
                                         color = when {
                                             state.unregisteredSmsCount > 0 -> MaterialTheme.colorScheme.onTertiaryContainer
                                             !hasSnapshot -> MaterialTheme.colorScheme.primary
-                                            state.isSynced -> IncomeColor
+                                            state.isSynced -> MaterialTheme.incomeColor
                                             else -> MaterialTheme.colorScheme.error
                                         },
                                         style = MaterialTheme.typography.labelMedium,
@@ -213,9 +214,9 @@ fun ReconciliationScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = if (hasSnapshot) {
-                                    "تاریخ آخرین اسنپ‌شات پیامک: $snapDateStr"
+                                    "آخرین مانده ثبت‌شده از پیامک: $snapDateStr"
                                 } else {
-                                    "بدون اسنپ‌شات پیامکی — تراز مستقیم ایزوله در دسترس است"
+                                    "پیامک مانده‌ای ثبت نشده — امکان تراز مستقیم موجود است"
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -307,7 +308,7 @@ fun ReconciliationScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "هنوز پیامک بانکی با مانده برای این حساب ثبت نشده است. با وارد کردن مانده واقعی حساب، اختلاف به‌صورت ایزوله و بدون اثر بر گزارش‌های هزینه و درآمد اصلاح می‌شود.",
+                                    text = "هنوز پیامک بانکی با مانده برای این حساب ثبت نشده است. با وارد کردن مانده واقعی حساب، اختلاف بدون اثر بر گزارش‌های هزینه و درآمد اصلاح می‌شود.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -322,7 +323,7 @@ fun ReconciliationScreen(
                                 ) {
                                     Icon(imageVector = Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("تراز دستی موجودی با مانده واقعی بانک (ایزوله)", fontWeight = FontWeight.Bold)
+                                    Text("تراز مستقیم موجودی با مانده بانک", fontWeight = FontWeight.Bold)
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 TextButton(
@@ -339,7 +340,8 @@ fun ReconciliationScreen(
                 } else {
                     item {
                         val absDiff = abs(state.diff)
-                        val diffColor = if (state.isSynced) IncomeColor else MaterialTheme.colorScheme.error
+                        val incomeTint = MaterialTheme.incomeColor
+                        val diffColor = if (state.isSynced) incomeTint else MaterialTheme.colorScheme.error
                         val signedDiffHeadline = when {
                             state.isSynced -> "۰ ریال (همخوان)"
                             state.diff > 0L -> "+ ${AmountFormatter.format(absDiff)}"
@@ -355,11 +357,11 @@ fun ReconciliationScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (state.isSynced) IncomeColor.copy(alpha = 0.08f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+                                containerColor = if (state.isSynced) incomeTint.copy(alpha = 0.08f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
                             ),
                             border = androidx.compose.foundation.BorderStroke(
                                 1.5.dp,
-                                if (state.isSynced) IncomeColor.copy(alpha = 0.3f) else MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+                                if (state.isSynced) incomeTint.copy(alpha = 0.3f) else MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
                             )
                         ) {
                             Column(
@@ -442,10 +444,11 @@ fun ReconciliationScreen(
                     // Synced Celebration Card
                     if (state.isSynced) {
                         item {
+                            val syncedTint = MaterialTheme.incomeColor
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = IncomeColor.copy(alpha = 0.12f))
+                                colors = CardDefaults.cardColors(containerColor = syncedTint.copy(alpha = 0.12f))
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -456,7 +459,7 @@ fun ReconciliationScreen(
                                     Icon(
                                         imageVector = Icons.Default.CheckCircle,
                                         contentDescription = null,
-                                        tint = IncomeColor,
+                                        tint = syncedTint,
                                         modifier = Modifier.size(36.dp)
                                     )
                                     Spacer(modifier = Modifier.width(14.dp))
@@ -465,7 +468,7 @@ fun ReconciliationScreen(
                                             text = "مانده حساب با بانک کاملاً همخوان است",
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = IncomeColor
+                                            color = syncedTint
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
@@ -539,7 +542,7 @@ fun ReconciliationScreen(
                                                             text = "${if (isInc) "واریز" else "برداشت"}: ${AmountFormatter.format(amt)}",
                                                             style = MaterialTheme.typography.bodyMedium,
                                                             fontWeight = FontWeight.Bold,
-                                                            color = if (isInc) IncomeColor else ExpenseColor
+                                                            color = if (isInc) MaterialTheme.incomeColor else MaterialTheme.expenseColor
                                                         )
                                                         Text(
                                                             text = "$dateStr — ${p.rawDescription ?: item.rawText.take(40)}",
@@ -608,7 +611,7 @@ fun ReconciliationScreen(
                                 CauseCard(
                                     icon = Icons.Default.Edit,
                                     title = "مانده اولیه حساب اشتباه ثبت شده",
-                                    description = "این اختلاف از اولین اسنپ‌شات ثبت‌شده وجود داشته و در طول زمان ثابت مانده است. با یک کلیک مانده اولیه حساب اصلاح می‌شود.",
+                                    description = "این اختلاف از اولین پیامک مانده ثبت‌شده وجود داشته و در طول زمان ثابت مانده است. با یک کلیک مانده اولیه حساب اصلاح می‌شود.",
                                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                                     accentColor = MaterialTheme.colorScheme.primary
                                 ) {
@@ -650,8 +653,8 @@ fun ReconciliationScreen(
                                 }
                                 CauseCard(
                                     icon = Icons.Default.Tune,
-                                    title = "تراز ایزوله مانده حساب (پیشنهادی)",
-                                    description = "الگوی خودکاری برای این اختلاف یافت نشد. با تراز ایزوله، موجودی حساب بدون ثبت هزینه یا درآمد کاذب در گزارش‌ها و نمودارها با بانک همخوان می‌شود.",
+                                    title = "تراز مستقیم مانده حساب (پیشنهادی)",
+                                    description = "الگوی خودکاری برای این اختلاف یافت نشد. با تراز مستقیم، موجودی حساب بدون ثبت هزینه یا درآمد اضافه در گزارش‌ها و نمودارها با بانک همخوان می‌شود.",
                                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                                     accentColor = MaterialTheme.colorScheme.primary
                                 ) {
@@ -683,7 +686,7 @@ fun ReconciliationScreen(
                                         ) {
                                             Icon(imageVector = Icons.Default.AccountBalanceWallet, contentDescription = null, modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text("وارد کردن مانده دلخواه بانک (ایزوله)")
+                                            Text("وارد کردن مانده دلخواه بانک")
                                         }
 
                                         TextButton(
@@ -747,7 +750,7 @@ fun ReconciliationScreen(
                             Icon(imageVector = Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "تعدیل‌های ایزوله تراز مانده (${state.adjustments.size.toString().toPersianDigits()})",
+                                text = "تعدیل‌های مستقیم تراز مانده (${state.adjustments.size.toString().toPersianDigits()})",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -780,7 +783,7 @@ fun ReconciliationScreen(
                                         text = amountText,
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isPositive) IncomeColor else ExpenseColor
+                                        color = if (isPositive) MaterialTheme.incomeColor else MaterialTheme.expenseColor
                                     )
                                     Text(
                                         text = "$dateText — ${adj.note ?: "تراز مانده حساب"}",
@@ -788,7 +791,7 @@ fun ReconciliationScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = "ایزوله از گزارش هزینه‌ها و درآمدها",
+                                        text = "بدون اثر بر گزارش‌های هزینه و درآمد",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -817,7 +820,7 @@ fun ReconciliationScreen(
                         Icon(imageVector = Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "تاریخچه اسنپ‌شات‌ها و اختلاف‌ها (${state.history.size.toString().toPersianDigits()})",
+                            text = "تاریخچه مانده‌های پیامکی (${state.history.size.toString().toPersianDigits()})",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -832,7 +835,7 @@ fun ReconciliationScreen(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                         ) {
                             Text(
-                                text = "هنوز اسنپ‌شاتی از مانده بانک برای این حساب ذخیره نشده است.",
+                                text = "هنوز مانده‌ای از پیامک‌های بانکی برای این حساب ذخیره نشده است.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(16.dp),
@@ -899,7 +902,7 @@ fun ReconciliationScreen(
                                     text = diffText,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isItemSynced) IncomeColor else MaterialTheme.colorScheme.error,
+                                    color = if (isItemSynced) MaterialTheme.incomeColor else MaterialTheme.colorScheme.error,
                                     modifier = Modifier.weight(1.2f),
                                     textAlign = TextAlign.End
                                 )
@@ -919,7 +922,7 @@ fun ReconciliationScreen(
             onDismissRequest = { adjustmentToDelete = null },
             title = { Text("حذف تعدیل تراز مانده", fontWeight = FontWeight.Bold) },
             text = {
-                Text("آیا از حذف تعدیل ایزوله به مبلغ $signedAmt مطمئن هستید؟ موجودی حساب مجدداً محاسبه خواهد شد.")
+                Text("آیا از حذف تعدیل مانده به مبلغ $signedAmt مطمئن هستید؟ موجودی حساب مجدداً محاسبه خواهد شد.")
             },
             confirmButton = {
                 Button(
@@ -939,7 +942,7 @@ fun ReconciliationScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseColor)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.expenseColor)
                 ) {
                     Text("حذف")
                 }
@@ -952,7 +955,7 @@ fun ReconciliationScreen(
         )
     }
 
-    // Isolated Target Bank Balance Reconciliation Dialog (No fake Expense/Income)
+    // Direct Target Bank Balance Reconciliation Dialog (No fake Expense/Income)
     if (showIsolatedTargetDialog) {
         var targetBankBalanceStr by remember {
             mutableStateOf(if (hasSnapshot && state.bankBalance > 0L) state.bankBalance.toString() else "")
@@ -963,11 +966,11 @@ fun ReconciliationScreen(
 
         AlertDialog(
             onDismissRequest = { showIsolatedTargetDialog = false },
-            title = { Text("تراز ایزوله با مانده بانک", fontWeight = FontWeight.Bold) },
+            title = { Text("تراز مستقیم با مانده بانک", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "مانده واقعی حساب در بانک را به ریال وارد کنید. اختلاف محاسبه‌شده به‌صورت تعدیل ایزوله ثبت می‌شود و در آمار هزینه‌ها و درآمدها تأثیری ندارد.",
+                        text = "مانده واقعی حساب در بانک را به ریال وارد کنید. اختلاف محاسبه‌شده بدون تغییر در آمار هزینه‌ها و درآمدها اعمال می‌شود.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -993,17 +996,17 @@ fun ReconciliationScreen(
                     if (previewDelta != null) {
                         val previewText = when {
                             previewDelta == 0L -> "مانده اپ هم‌اکنون با این مبلغ همخوان است (اختلاف ۰ ریال)."
-                            previewDelta > 0L -> "تعدیل ایزوله: + ${AmountFormatter.format(abs(previewDelta))}"
-                            else -> "تعدیل ایزوله: - ${AmountFormatter.format(abs(previewDelta))}"
+                            previewDelta > 0L -> "مقدار تعدیل: + ${AmountFormatter.format(abs(previewDelta))}"
+                            else -> "مقدار تعدیل: - ${AmountFormatter.format(abs(previewDelta))}"
                         }
                         Text(
                             text = previewText,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
                             color = when {
-                                previewDelta == 0L -> IncomeColor
-                                previewDelta > 0L -> IncomeColor
-                                else -> ExpenseColor
+                                previewDelta == 0L -> MaterialTheme.incomeColor
+                                previewDelta > 0L -> MaterialTheme.incomeColor
+                                else -> MaterialTheme.expenseColor
                             }
                         )
                     }
@@ -1034,7 +1037,7 @@ fun ReconciliationScreen(
                     enabled = parsedTarget != null && previewDelta != 0L,
                     modifier = Modifier.testTag("confirm_isolated_reconcile_button")
                 ) {
-                    Text("تراز مانده (ایزوله)")
+                    Text("تراز مانده")
                 }
             },
             dismissButton = {
@@ -1075,23 +1078,25 @@ fun ReconciliationScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        val expTint = MaterialTheme.expenseColor
+                        val incTint = MaterialTheme.incomeColor
                         OutlinedButton(
                             onClick = { manualType = TransactionType.EXPENSE },
                             modifier = Modifier.weight(1f),
                             colors = if (manualType == TransactionType.EXPENSE)
-                                ButtonDefaults.outlinedButtonColors(containerColor = ExpenseColor.copy(alpha = 0.15f))
+                                ButtonDefaults.outlinedButtonColors(containerColor = expTint.copy(alpha = 0.15f))
                             else ButtonDefaults.outlinedButtonColors()
                         ) {
-                            Text("هزینه (کسر)", color = if (manualType == TransactionType.EXPENSE) ExpenseColor else Color.Unspecified)
+                            Text("هزینه (کسر)", color = if (manualType == TransactionType.EXPENSE) expTint else Color.Unspecified)
                         }
                         OutlinedButton(
                             onClick = { manualType = TransactionType.INCOME },
                             modifier = Modifier.weight(1f),
                             colors = if (manualType == TransactionType.INCOME)
-                                ButtonDefaults.outlinedButtonColors(containerColor = IncomeColor.copy(alpha = 0.15f))
+                                ButtonDefaults.outlinedButtonColors(containerColor = incTint.copy(alpha = 0.15f))
                             else ButtonDefaults.outlinedButtonColors()
                         ) {
-                            Text("درآمد (افزودن)", color = if (manualType == TransactionType.INCOME) IncomeColor else Color.Unspecified)
+                            Text("درآمد (افزودن)", color = if (manualType == TransactionType.INCOME) incTint else Color.Unspecified)
                         }
                     }
 
@@ -1184,7 +1189,8 @@ private fun CauseCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = subtleCardBorder(0.6f),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier

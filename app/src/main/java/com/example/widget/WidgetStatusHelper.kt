@@ -504,7 +504,7 @@ object WidgetStatusHelper {
                     views.setTextViewText(R.id.widget_tv_empty_sub, "برای یافتن پیامک‌های ثبت‌نشده، دکمه «اسکن پیامک‌ها» را لمس کنید.")
                     views.setTextColor(R.id.widget_tv_empty_sub, statusColor)
                 } else {
-                    views.setTextViewText(R.id.widget_tv_empty_title, "همه پیامک‌های ۷ روز گذشته ثبت شده‌اند ✅")
+                    views.setTextViewText(R.id.widget_tv_empty_title, "همه پیامک‌های ۷ روز گذشته ثبت شده‌اند")
                     views.setTextColor(R.id.widget_tv_empty_title, emptySuccessColor)
                     views.setTextViewText(R.id.widget_tv_empty_sub, "هیچ تراکنش ثبت‌نشده‌ای در ۷ روز اخیر یافت نشد.")
                     views.setTextColor(R.id.widget_tv_empty_sub, statusColor)

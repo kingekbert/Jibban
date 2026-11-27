@@ -71,10 +71,13 @@ import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.DebtEntity
 import com.example.data.local.entity.DebtType
 import com.example.ui.components.AmountInput
+import com.example.ui.components.AppSegmentedControl
+import com.example.ui.components.AppSurfaceCard
 import com.example.ui.components.EmptyState
 import com.example.ui.components.JalaliDatePickerDialog
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
+import com.example.ui.components.subtleCardBorder
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.incomeColor
 import com.example.util.AmountFormatter
 import com.example.util.DateFormatter
 
@@ -128,21 +131,22 @@ fun DebtsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            val incomeTint = MaterialTheme.incomeColor
+            val expenseTint = MaterialTheme.expenseColor
+
             // Header Summary Card
-            Card(
+            AppSurfaceCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(18.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(
                         modifier = Modifier.weight(1f),
@@ -156,16 +160,16 @@ fun DebtsScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = AmountFormatter.format(state.totalOwedToMe),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                             fontWeight = FontWeight.Bold,
-                            color = IncomeColor
+                            color = incomeTint
                         )
                     }
 
                     Box(
                         modifier = Modifier
                             .width(1.dp)
-                            .height(40.dp)
+                            .height(38.dp)
                             .background(MaterialTheme.colorScheme.outlineVariant)
                     )
 
@@ -181,43 +185,23 @@ fun DebtsScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = AmountFormatter.format(state.totalIOwe),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                             fontWeight = FontWeight.Bold,
-                            color = ExpenseColor
+                            color = expenseTint
                         )
                     }
                 }
             }
 
-            // Tabs (Owed To Me / I Owe)
-            TabRow(
-                selectedTabIndex = if (state.selectedTab == DebtType.OWED_TO_ME) 0 else 1,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Tab(
-                    selected = state.selectedTab == DebtType.OWED_TO_ME,
-                    onClick = { viewModel.setSelectedTab(DebtType.OWED_TO_ME) },
-                    text = {
-                        Text(
-                            "طلب‌های من",
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.selectedTab == DebtType.OWED_TO_ME) IncomeColor else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                )
-
-                Tab(
-                    selected = state.selectedTab == DebtType.I_OWE,
-                    onClick = { viewModel.setSelectedTab(DebtType.I_OWE) },
-                    text = {
-                        Text(
-                            "بدهی‌های من",
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.selectedTab == DebtType.I_OWE) ExpenseColor else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                )
-            }
+            // Unified Segmented Control (Owed To Me / I Owe)
+            AppSegmentedControl(
+                items = listOf("طلب‌های من", "بدهی‌های من"),
+                selectedIndex = if (state.selectedTab == DebtType.OWED_TO_ME) 0 else 1,
+                onSelect = { idx ->
+                    viewModel.setSelectedTab(if (idx == 0) DebtType.OWED_TO_ME else DebtType.I_OWE)
+                },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
 
             // Debts List
             if (state.debts.isEmpty()) {
@@ -282,7 +266,7 @@ fun DebtsScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseColor)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.expenseColor)
                 ) {
                     Text("حذف")
                 }
@@ -330,18 +314,21 @@ fun DebtCardItem(
     modifier: Modifier = Modifier
 ) {
     val isOwedToMe = debt.type == DebtType.OWED_TO_ME
-    val mainColor = if (isOwedToMe) IncomeColor else ExpenseColor
+    val incomeTint = MaterialTheme.incomeColor
+    val expenseTint = MaterialTheme.expenseColor
+    val mainColor = if (isOwedToMe) incomeTint else expenseTint
 
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onEdit),
         shape = RoundedCornerShape(16.dp),
+        border = subtleCardBorder(if (debt.isSettled) 0.45f else 0.72f),
         colors = CardDefaults.cardColors(
             containerColor = if (debt.isSettled) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
             else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (debt.isSettled) 0.dp else 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -351,9 +338,9 @@ fun DebtCardItem(
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(mainColor.copy(alpha = 0.15f)),
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(mainColor.copy(alpha = 0.13f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -377,13 +364,13 @@ fun DebtCardItem(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(IncomeColor.copy(alpha = 0.15f))
+                                .background(incomeTint.copy(alpha = 0.14f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "تسویه‌شده",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = IncomeColor,
+                                color = incomeTint,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -394,7 +381,7 @@ fun DebtCardItem(
 
                 Text(
                     text = AmountFormatter.format(debt.amount),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                     fontWeight = FontWeight.Bold,
                     color = if (debt.isSettled) MaterialTheme.colorScheme.onSurfaceVariant else mainColor
                 )
@@ -420,7 +407,7 @@ fun DebtCardItem(
                 Icon(
                     imageVector = if (debt.isSettled) Icons.Default.CheckCircle else Icons.Outlined.CheckCircle,
                     contentDescription = if (debt.isSettled) "لغو تسویه" else "تسویه",
-                    tint = if (debt.isSettled) IncomeColor else MaterialTheme.colorScheme.outline
+                    tint = if (debt.isSettled) incomeTint else MaterialTheme.colorScheme.outline
                 )
             }
 
@@ -466,7 +453,7 @@ private fun SettleDebtDialog(
                     text = "مبلغ: ${AmountFormatter.format(debt.amount)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isOwedToMe) IncomeColor else ExpenseColor
+                    color = if (isOwedToMe) MaterialTheme.incomeColor else MaterialTheme.expenseColor
                 )
 
                 if (accounts.isNotEmpty()) {
@@ -539,7 +526,7 @@ private fun SettleDebtDialog(
                     onConfirm(if (recordTransaction) selectedAccountId else null)
                 },
                 enabled = !recordTransaction || selectedAccountId != null,
-                colors = ButtonDefaults.buttonColors(containerColor = IncomeColor)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.incomeColor)
             ) {
                 Text(if (recordTransaction) "تسویه و ثبت تراکنش" else "فقط تسویه", fontWeight = FontWeight.Bold)
             }
@@ -592,7 +579,7 @@ fun AddDebtDialog(
                         onClick = { onTypeChange(DebtType.OWED_TO_ME) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (state.dialogType == DebtType.OWED_TO_ME) IncomeColor else MaterialTheme.colorScheme.surfaceVariant,
+                            containerColor = if (state.dialogType == DebtType.OWED_TO_ME) MaterialTheme.incomeColor else MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = if (state.dialogType == DebtType.OWED_TO_ME) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     ) {
@@ -603,7 +590,7 @@ fun AddDebtDialog(
                         onClick = { onTypeChange(DebtType.I_OWE) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (state.dialogType == DebtType.I_OWE) ExpenseColor else MaterialTheme.colorScheme.surfaceVariant,
+                            containerColor = if (state.dialogType == DebtType.I_OWE) MaterialTheme.expenseColor else MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = if (state.dialogType == DebtType.I_OWE) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     ) {

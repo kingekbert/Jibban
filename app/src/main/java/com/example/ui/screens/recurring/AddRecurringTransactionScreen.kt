@@ -33,8 +33,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -52,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.entity.RecurrencePeriod
 import com.example.data.local.entity.TransactionType
 import com.example.ui.components.AmountInput
+import com.example.ui.components.AppSegmentedControl
 import com.example.ui.components.CategoryPicker
 import com.example.ui.components.JalaliDatePickerDialog
 import com.example.util.DateFormatter
@@ -115,25 +114,13 @@ fun AddRecurringTransactionScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Transaction Type Tabs (Expense, Income, Transfer)
+            // Transaction Type Segmented Control (Expense, Income, Transfer)
             val types = listOf(TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER)
-            TabRow(
-                selectedTabIndex = types.indexOf(state.type).coerceAtLeast(0),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                types.forEach { type ->
-                    val label = when (type) {
-                        TransactionType.EXPENSE -> "هزینه"
-                        TransactionType.INCOME -> "درآمد"
-                        TransactionType.TRANSFER -> "انتقال"
-                    }
-                    Tab(
-                        selected = state.type == type,
-                        onClick = { viewModel.setType(type) },
-                        text = { Text(label, fontWeight = if (state.type == type) FontWeight.Bold else FontWeight.Normal) }
-                    )
-                }
-            }
+            AppSegmentedControl(
+                items = listOf("هزینه", "درآمد", "انتقال"),
+                selectedIndex = types.indexOf(state.type).coerceAtLeast(0),
+                onSelect = { idx -> viewModel.setType(types[idx]) }
+            )
 
             // Title Input
             OutlinedTextField(

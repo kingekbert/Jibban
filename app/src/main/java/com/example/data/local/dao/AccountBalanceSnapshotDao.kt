@@ -44,6 +44,12 @@ interface AccountBalanceSnapshotDao {
     @Query("DELETE FROM account_balance_snapshots WHERE accountId = :accountId")
     suspend fun deleteAllForAccount(accountId: Long)
 
+    @Query("DELETE FROM account_balance_snapshots WHERE smsDate > :maxValidTimestamp")
+    suspend fun deleteFutureSnapshots(maxValidTimestamp: Long): Int
+
+    @Query("DELETE FROM account_balance_snapshots WHERE accountId = :accountId AND smsDate > :maxValidTimestamp")
+    suspend fun deleteFutureSnapshotsForAccount(accountId: Long, maxValidTimestamp: Long): Int
+
     @Query("DELETE FROM account_balance_snapshots")
     suspend fun deleteAll()
 }

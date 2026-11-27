@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class AccountDetailUiState(
     val accountWithBalance: AccountWithBalance? = null,
@@ -37,6 +38,12 @@ class AccountDetailViewModel(
     smsPatternRepository: SmsPatternRepository,
     reconciliationRepository: com.example.data.repository.ReconciliationRepository
 ) : ViewModel() {
+
+    init {
+        viewModelScope.launch {
+            runCatching { reconciliationRepository.cleanupInvalidFutureSnapshots(accountId) }
+        }
+    }
 
     val uiState: StateFlow<AccountDetailUiState> = combine(
         accountRepository.getAccountWithBalance(accountId),
@@ -73,10 +80,13 @@ class AccountDetailViewModel(
         }
 
         val currentAppBal = accountWithBalance?.currentBalance ?: account?.initialBalance ?: 0L
+        val validLatestSnapshot = latestSnapshot?.takeIf {
+            it.smsDate in 1L..reconciliationRepository.maxValidSnapshotTimestamp()
+        }
 
-        val diff = if (latestSnapshot != null) {
+        val diff = if (validLatestSnapshot != null) {
             com.example.util.BalanceReconciliationEngine.calculateDiff(
-                bankBalance = latestSnapshot.balance,
+                bankBalance = validLatestSnapshot.balance,
                 appBalance = currentAppBal
             )
         } else 0L
@@ -88,11 +98,11 @@ class AccountDetailViewModel(
             totalIncome = incomeSum,
             totalExpense = expenseSum,
             transactionCount = transactions.size,
-            latestSnapshot = latestSnapshot,
+            latestSnapshot = validLatestSnapshot,
             appBalanceAtSnapshot = currentAppBal,
             reconciliationDiff = diff,
             isReconciliationSynced = diff == 0L,
-            hasSnapshots = latestSnapshot != null
+            hasSnapshots = validLatestSnapshot != null
         )
     }.stateIn(
         scope = viewModelScope,

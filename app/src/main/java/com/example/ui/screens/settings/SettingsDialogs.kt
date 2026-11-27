@@ -12,7 +12,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -31,7 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.ui.theme.ExpenseColor
+import com.example.ui.theme.expenseColor
 
 @Composable
 internal fun RestoreOptionsDialog(
@@ -46,7 +54,7 @@ internal fun RestoreOptionsDialog(
                 imageVector = Icons.Default.Restore,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(30.dp)
             )
         },
         title = {
@@ -70,17 +78,29 @@ internal fun RestoreOptionsDialog(
                 Button(
                     onClick = onPickFile,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("📂 انتخاب فایل (.ftb یا .json) از حافظه")
+                    Icon(
+                        imageVector = Icons.Default.FolderOpen,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("انتخاب فایل (.ftb یا .json) از حافظه")
                 }
 
                 OutlinedButton(
                     onClick = onPasteText,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("📋 وارد کردن مستقیم متن فایل (JSON یا رمزشده)")
+                    Icon(
+                        imageVector = Icons.Default.ContentPaste,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("وارد کردن مستقیم متن فایل")
                 }
             }
         },
@@ -124,16 +144,16 @@ internal fun PasteBackupTextDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp),
-                    label = { Text("متن پشتیبان (.json یا Base64 .ftb)") },
+                    label = { Text("متن پشتیبان (.json یا .ftb)") },
                     placeholder = { Text("{\"accounts\": [...]} یا متن رمزشده") },
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text("بررسی و بازیابی")
             }
@@ -160,7 +180,7 @@ internal fun ExportBackupOptionsDialog(
                 imageVector = Icons.Default.Backup,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(30.dp)
             )
         },
         title = {
@@ -173,7 +193,7 @@ internal fun ExportBackupOptionsDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
                     text = "نوع نسخه پشتیبان را انتخاب کنید:",
@@ -184,8 +204,10 @@ internal fun ExportBackupOptionsDialog(
                 // Option 1: Encrypted Secure Backup (.ftb)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                    )
                 ) {
                     Column(
                         modifier = Modifier
@@ -193,14 +215,25 @@ internal fun ExportBackupOptionsDialog(
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Text(
+                                text = "بک‌آپ امن و رمزنگاری‌شده (.ftb)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         Text(
-                            text = "🔒 بک‌آپ امن (رمزنگاری‌شده) (.ftb)",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "رمزگذاری‌شده با کلید امن Keystore. مخصوص استفاده روزمره روی همین دستگاه.",
+                            text = "رمزنگاری‌شده با کلید امن دستگاه. مناسب استفاده روزمره روی همین گوشی.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -212,17 +245,29 @@ internal fun ExportBackupOptionsDialog(
                             Button(
                                 onClick = onSaveEncryptedFile,
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(10.dp)
                             ) {
-                                Text("💾 ذخیره فایل")
+                                Icon(
+                                    imageVector = Icons.Default.Save,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text("ذخیره فایل")
                             }
 
                             OutlinedButton(
                                 onClick = onShareEncryptedBackup,
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(10.dp)
                             ) {
-                                Text("📤 اشتراک‌گذاری")
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text("اشتراک")
                             }
                         }
                     }
@@ -231,8 +276,10 @@ internal fun ExportBackupOptionsDialog(
                 // Option 2: Portable Plain JSON
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                    )
                 ) {
                     Column(
                         modifier = Modifier
@@ -240,13 +287,24 @@ internal fun ExportBackupOptionsDialog(
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Text(
+                                text = "بک‌آپ قابل حمل (JSON)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         Text(
-                            text = "📄 بک‌آپ قابل حمل (بدون رمزنگاری، JSON)",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "مناسب برای انتقال به گوشی دیگر یا حفظ اطلاعات در صورت حذف و نصب مجدد اپلیکیشن.",
+                            text = "مناسب انتقال به گوشی دیگر یا نصب مجدد برنامه.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -255,9 +313,9 @@ internal fun ExportBackupOptionsDialog(
                             onClick = onSelectPortablePlain,
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(10.dp)
                         ) {
-                            Text("انتخاب بک‌آپ قابل حمل...")
+                            Text("ادامه با نسخه قابل حمل")
                         }
                     }
                 }
@@ -294,7 +352,7 @@ internal fun PlainBackupExportActionsDialog(
             ) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
                     )
@@ -309,11 +367,11 @@ internal fun PlainBackupExportActionsDialog(
                             imageVector = Icons.Default.Warning,
                             contentDescription = "هشدار امنیتی",
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "این فایل رمزنگاری نشده و حاوی تمام اطلاعات مالی شماست. فقط در محل امن نگهداری کنید.",
+                            text = "این فایل رمزنگاری نشده و حاوی تمام اطلاعات مالی شماست. در جای امن نگهداری کنید.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             fontWeight = FontWeight.Medium
@@ -324,25 +382,43 @@ internal fun PlainBackupExportActionsDialog(
                 Button(
                     onClick = onSaveJsonFile,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("💾 ذخیره به‌صورت فایل (.json)")
+                    Icon(
+                        imageVector = Icons.Default.Save,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("ذخیره به‌صورت فایل (.json)")
                 }
 
                 OutlinedButton(
                     onClick = onCopyJsonToClipboard,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("📋 کپی مستقیم متن JSON در کلیپ‌بورد")
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("کپی متن JSON در کلیپ‌بورد")
                 }
 
                 OutlinedButton(
                     onClick = onShareJsonText,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("📤 اشتراک‌گذاری متن JSON")
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("اشتراک‌گذاری متن JSON")
                 }
             }
         },
@@ -360,19 +436,20 @@ internal fun RestoreConfirmWarningDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val dangerColor = MaterialTheme.expenseColor
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
             Icon(
                 imageVector = Icons.Default.Warning,
                 contentDescription = "هشدار بازنویسی داده‌ها",
-                tint = ExpenseColor,
-                modifier = Modifier.size(36.dp)
+                tint = dangerColor,
+                modifier = Modifier.size(34.dp)
             )
         },
         title = {
             Text(
-                text = "تأیید بازنویسی و بازیابی داده‌ها",
+                text = "تأیید بازیابی داده‌ها",
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.titleMedium,
@@ -382,36 +459,41 @@ internal fun RestoreConfirmWarningDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "هشدار مهم:",
-                    fontWeight = FontWeight.Bold,
-                    color = ExpenseColor,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = "با بازیابی فایل پشتیبان، تمام داده‌های فعلی شامل تمام تراکنش‌ها، حساب‌ها، بدهی‌ها و دسته‌بندی‌ها حذف شده و با اطلاعات موجود در این فایل جایگزین خواهند شد.",
+                    text = "با بازیابی این فایل، تمام تراکنش‌ها، حساب‌ها، بدهی‌ها و دسته‌بندی‌های فعلی با اطلاعات فایل پشتیبان جایگزین می‌شوند.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Text(
-                    text = "✓ جهت اطمینان، یک نسخه پشتیبان خودکار از داده‌های فعلی شما پیش از جایگزینی ذخیره می‌شود.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "پیش از جایگزینی، یک نسخه پشتیبان خودکار از داده‌های فعلی ذخیره می‌شود.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = ExpenseColor),
-                shape = RoundedCornerShape(10.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = dangerColor),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("جایگزینی و بازیابی داده‌ها", fontWeight = FontWeight.Bold)
+                Text("جایگزینی و بازیابی", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             OutlinedButton(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text("انصراف")
             }

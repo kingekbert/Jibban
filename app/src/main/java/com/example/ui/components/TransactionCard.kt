@@ -39,16 +39,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.TransactionType
 import com.example.data.local.relation.TransactionWithDetails
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
-import com.example.ui.theme.TransferColor
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.goldAccent
+import com.example.ui.theme.incomeColor
+import com.example.ui.theme.transferColor
 import com.example.util.AmountFormatter
 import com.example.util.BankLogoBadge
 import com.example.util.DateFormatter
@@ -62,10 +62,14 @@ fun TransactionCard(
     modifier: Modifier = Modifier
 ) {
     val tx = transactionWithDetails.transaction
+    val expenseTint = MaterialTheme.expenseColor
+    val incomeTint = MaterialTheme.incomeColor
+    val transferTint = MaterialTheme.transferColor
+    val goldTint = MaterialTheme.goldAccent
     val (amountColor, amountPrefix, defaultIcon) = when (tx.type) {
-        TransactionType.EXPENSE -> Triple(ExpenseColor, "-", transactionWithDetails.categoryIcon ?: "more_horiz")
-        TransactionType.INCOME -> Triple(IncomeColor, "+", transactionWithDetails.categoryIcon ?: "payments")
-        TransactionType.TRANSFER -> Triple(TransferColor, "", "swap_horiz")
+        TransactionType.EXPENSE -> Triple(expenseTint, "-", transactionWithDetails.categoryIcon ?: "more_horiz")
+        TransactionType.INCOME -> Triple(incomeTint, "+", transactionWithDetails.categoryIcon ?: "payments")
+        TransactionType.TRANSFER -> Triple(transferTint, "", "swap_horiz")
     }
 
     val iconColor = transactionWithDetails.categoryColor?.let { Color(it) } ?: amountColor
@@ -90,24 +94,22 @@ fun TransactionCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 1.dp,
-                shape = RoundedCornerShape(14.dp),
-                spotColor = Color.Black.copy(alpha = 0.05f)
-            )
+            .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() },
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        )
+        ),
+        border = subtleCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
                     start = 14.dp,
-                    top = 14.dp,
-                    bottom = 14.dp,
+                    top = 13.dp,
+                    bottom = 13.dp,
                     end = if (onToggleBookmark != null) 4.dp else 14.dp
                 ),
             verticalAlignment = Alignment.CenterVertically
@@ -115,23 +117,23 @@ fun TransactionCard(
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .clip(CircleShape)
-                    .background(iconColor.copy(alpha = 0.15f)),
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iconColor.copy(alpha = 0.13f)),
                 contentAlignment = Alignment.Center
             ) {
                 if (tx.type == TransactionType.TRANSFER) {
                     Icon(
                         imageVector = Icons.Default.SwapHoriz,
                         contentDescription = "انتقال",
-                        tint = TransferColor,
-                        modifier = Modifier.size(24.dp)
+                        tint = transferTint,
+                        modifier = Modifier.size(22.dp)
                     )
                 } else {
                     Icon(
                         imageVector = getCategoryIcon(defaultIcon),
                         contentDescription = titleText,
                         tint = iconColor,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
@@ -200,7 +202,7 @@ fun TransactionCard(
                             Icon(
                                 imageVector = Icons.Filled.Bookmark,
                                 contentDescription = "نشانه‌دار",
-                                tint = Color(0xFFF59E0B),
+                                tint = goldTint,
                                 modifier = Modifier.size(15.dp)
                             )
                         }
@@ -225,7 +227,7 @@ fun TransactionCard(
                     }
                 }
                 val bookmarkTint by animateColorAsState(
-                    targetValue = if (tx.isBookmarked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                    targetValue = if (tx.isBookmarked) goldTint else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                     animationSpec = tween(200),
                     label = "bookmarkTint"
                 )

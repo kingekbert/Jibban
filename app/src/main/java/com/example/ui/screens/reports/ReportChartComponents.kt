@@ -1,11 +1,19 @@
 package com.example.ui.screens.reports
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,34 +28,44 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.domain.model.CategorySummary
+import com.example.ui.components.AppSurfaceCard
 import com.example.ui.components.getCategoryIcon
 import com.example.ui.components.rememberAnimatedAmount
 import com.example.ui.components.rememberAnimatedProgress
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
+import com.example.ui.components.subtleCardBorder
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.incomeColor
 import com.example.util.AmountFormatter
 import com.example.util.toPersianDigits
+import kotlin.math.atan2
+import kotlin.math.hypot
 
 @Composable
 fun ReportSummaryCard(
@@ -55,16 +73,15 @@ fun ReportSummaryCard(
     totalExpense: Long,
     netBalance: Long
 ) {
+    val incomeTint = MaterialTheme.incomeColor
+    val expenseTint = MaterialTheme.expenseColor
     val animatedIncome = rememberAnimatedAmount(targetAmount = totalIncome, durationMillis = 520)
     val animatedExpense = rememberAnimatedAmount(targetAmount = totalExpense, durationMillis = 520)
     val animatedNet = rememberAnimatedAmount(targetAmount = netBalance, durationMillis = 520)
 
-    Card(
+    AppSurfaceCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-        )
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
@@ -79,37 +96,37 @@ fun ReportSummaryCard(
                 Column {
                     Text(
                         text = "درآمد کل",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = AmountFormatter.format(animatedIncome),
                         style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                        fontWeight = FontWeight.Black,
-                        color = IncomeColor
+                        fontWeight = FontWeight.ExtraBold,
+                        color = incomeTint
                     )
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "هزینه کل",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = AmountFormatter.format(animatedExpense),
                         style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                        fontWeight = FontWeight.Black,
-                        color = ExpenseColor
+                        fontWeight = FontWeight.ExtraBold,
+                        color = expenseTint
                     )
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(
+                thickness = 0.8.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
             )
 
             Row(
@@ -118,15 +135,16 @@ fun ReportSummaryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "مانده",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    text = "تراز دوره",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = AmountFormatter.format(animatedNet),
                     style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
-                    fontWeight = FontWeight.Black,
-                    color = if (netBalance >= 0) IncomeColor else ExpenseColor
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (netBalance >= 0) incomeTint else expenseTint
                 )
             }
         }
@@ -140,11 +158,17 @@ fun DonutChart(
     isExpense: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val strokeWidth = 28.dp
+    val baseStrokeWidth = 26.dp
+    val selectedStrokeWidth = 32.dp
     val sweepProgress = remember { Animatable(0f) }
+    var selectedSliceIndex by remember(categorySummaries, isExpense) { mutableIntStateOf(-1) }
     val animatedTotal = rememberAnimatedAmount(targetAmount = totalAmount, durationMillis = 560)
+    val expenseTint = MaterialTheme.expenseColor
+    val incomeTint = MaterialTheme.incomeColor
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
 
     LaunchedEffect(categorySummaries, totalAmount, isExpense) {
+        selectedSliceIndex = -1
         sweepProgress.snapTo(0f)
         sweepProgress.animateTo(
             targetValue = 1f,
@@ -152,66 +176,139 @@ fun DonutChart(
         )
     }
 
+    val selectedSummary = categorySummaries.getOrNull(selectedSliceIndex)
+
     Box(
-        modifier = modifier,
+        modifier = modifier.pointerInput(categorySummaries, totalAmount) {
+            detectTapGestures { offset ->
+                if (totalAmount <= 0L || categorySummaries.isEmpty()) return@detectTapGestures
+                val cx = size.width / 2f
+                val cy = size.height / 2f
+                val dx = offset.x - cx
+                val dy = offset.y - cy
+                val dist = hypot(dx, dy)
+                val outerRadius = minOf(size.width, size.height) / 2f
+                val innerRadius = outerRadius - selectedStrokeWidth.toPx() * 1.4f
+
+                if (dist < innerRadius) {
+                    // Tapping the center resets selection to total
+                    selectedSliceIndex = -1
+                    return@detectTapGestures
+                }
+
+                // Compute angle starting from -90 deg (12 o'clock) clockwise in [0, 360)
+                var deg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat() + 90f
+                if (deg < 0f) deg += 360f
+
+                var acc = 0f
+                var tappedIdx = -1
+                categorySummaries.forEachIndexed { idx, summary ->
+                    val span = (summary.percentage / 100f) * 360f
+                    if (deg >= acc && deg <= acc + span) {
+                        tappedIdx = idx
+                    }
+                    acc += span
+                }
+                selectedSliceIndex = if (tappedIdx == selectedSliceIndex) -1 else tappedIdx
+            }
+        },
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokePx = strokeWidth.toPx()
+            val strokePx = baseStrokeWidth.toPx()
+            val activeStrokePx = selectedStrokeWidth.toPx()
             var startAngle = -90f
             val progress = sweepProgress.value
+            val gapDegrees = if (categorySummaries.size > 1) 2.5f else 0f
 
             if (totalAmount <= 0L || categorySummaries.isEmpty()) {
                 drawArc(
-                    color = Color.LightGray.copy(alpha = 0.4f),
+                    color = trackColor,
                     startAngle = 0f,
                     sweepAngle = 360f,
                     useCenter = false,
                     style = Stroke(width = strokePx, cap = StrokeCap.Butt)
                 )
             } else {
-                // Subtle background track while sweeping in
                 drawArc(
-                    color = Color.LightGray.copy(alpha = 0.18f),
+                    color = trackColor.copy(alpha = 0.5f),
                     startAngle = 0f,
                     sweepAngle = 360f,
                     useCenter = false,
                     style = Stroke(width = strokePx, cap = StrokeCap.Butt)
                 )
-                categorySummaries.forEach { summary ->
-                    val sweepAngle = (summary.percentage / 100f) * 360f * progress
-                    if (sweepAngle > 0f) {
+                categorySummaries.forEachIndexed { idx, summary ->
+                    val rawSweep = (summary.percentage / 100f) * 360f * progress
+                    val drawSweep = (rawSweep - gapDegrees).coerceAtLeast(0.8f)
+                    if (rawSweep > 0f) {
+                        val isSelected = idx == selectedSliceIndex
+                        val dimAlpha = if (selectedSliceIndex == -1 || isSelected) 1f else 0.35f
                         drawArc(
-                            color = Color(summary.category.color),
-                            startAngle = startAngle,
-                            sweepAngle = sweepAngle,
+                            color = Color(summary.category.color).copy(alpha = dimAlpha),
+                            startAngle = startAngle + (gapDegrees / 2f),
+                            sweepAngle = drawSweep,
                             useCenter = false,
-                            style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                            style = Stroke(
+                                width = if (isSelected) activeStrokePx else strokePx,
+                                cap = StrokeCap.Butt
+                            )
                         )
-                        startAngle += sweepAngle
+                        startAngle += rawSweep
                     }
                 }
             }
         }
 
-        // Center Text inside Donut
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = if (isExpense) "مجموع هزینه" else "مجموع درآمد",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = AmountFormatter.format(animatedTotal, includeCurrency = false),
-                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                fontWeight = FontWeight.Bold,
-                color = if (isExpense) ExpenseColor else IncomeColor
-            )
-            Text(
-                text = "ریال",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        // Center interactive display: shows selected category or total
+        AnimatedContent(
+            targetState = selectedSummary,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "donutCenter"
+        ) { active ->
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 36.dp)
+            ) {
+                if (active != null) {
+                    Text(
+                        text = active.category.name,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(active.category.color),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = AmountFormatter.format(active.totalAmount, includeCurrency = false),
+                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "%.1f٪ از کل".format(active.percentage).toPersianDigits(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = if (isExpense) "مجموع هزینه" else "مجموع درآمد",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = AmountFormatter.format(animatedTotal, includeCurrency = false),
+                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isExpense) expenseTint else incomeTint
+                    )
+                    Text(
+                        text = "ریال",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
@@ -241,7 +338,7 @@ fun ChartLegend(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
+                                .size(9.dp)
                                 .clip(CircleShape)
                                 .background(Color(summary.category.color))
                         )
@@ -256,7 +353,7 @@ fun ChartLegend(
                         )
                         Text(
                             text = "%.1f٪".format(summary.percentage).toPersianDigits(),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -276,10 +373,15 @@ fun MonthlyTrendCard(
 ) {
     if (monthlyTrends.isEmpty()) return
 
+    val incomeTint = MaterialTheme.incomeColor
+    val expenseTint = MaterialTheme.expenseColor
+    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
     val maxAmount = monthlyTrends.maxOfOrNull { maxOf(it.income, it.expense) } ?: 0L
     val barGrowth = remember { Animatable(0f) }
+    var selectedMonthIndex by remember(monthlyTrends) { mutableIntStateOf(-1) }
 
     LaunchedEffect(monthlyTrends) {
+        selectedMonthIndex = -1
         barGrowth.snapTo(0f)
         barGrowth.animateTo(
             targetValue = 1f,
@@ -287,33 +389,34 @@ fun MonthlyTrendCard(
         )
     }
 
-    Card(
+    AppSurfaceCard(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Header with title and Legend
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "روند درآمد و هزینه (۶ ماه اخیر)",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        text = "روند ۶ ماه اخیر",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "برای جزئیات، روی هر ماه بزنید",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-                // Legend
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -323,13 +426,12 @@ fun MonthlyTrendCard(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(IncomeColor)
+                                .background(incomeTint)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "درآمد",
                             style = MaterialTheme.typography.labelSmall,
-                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -338,82 +440,162 @@ fun MonthlyTrendCard(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(ExpenseColor)
+                                .background(expenseTint)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "هزینه",
                             style = MaterialTheme.typography.labelSmall,
-                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
 
-            // Bar Chart Area
-            Row(
+            // Interactive tapped-month detail pill
+            val selectedTrend = monthlyTrends.getOrNull(selectedMonthIndex)
+            AnimatedVisibility(
+                visible = selectedTrend != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                selectedTrend?.let { trend ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        border = subtleCardBorder(0.55f)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = trend.monthName,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "درآمد: ${AmountFormatter.format(trend.income)}",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                                    color = incomeTint,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "هزینه: ${AmountFormatter.format(trend.expense)}",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                                    color = expenseTint,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Bar Chart Area with subtle horizontal dashed gridlines
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp)
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
+                    .height(132.dp)
+                    .padding(top = 6.dp)
             ) {
-                monthlyTrends.forEach { trend ->
-                    val incomeRatio = if (maxAmount > 0L) (trend.income.toFloat() / maxAmount).coerceIn(0.04f, 1f) else 0.04f
-                    val expenseRatio = if (maxAmount > 0L) (trend.expense.toFloat() / maxAmount).coerceIn(0.04f, 1f) else 0.04f
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(98.dp)
+                ) {
+                    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+                    listOf(0.05f, 0.5f, 0.98f).forEach { fraction ->
+                        val y = size.height * fraction
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(0f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = 0.9.dp.toPx(),
+                            pathEffect = if (fraction < 0.9f) dashEffect else null
+                        )
+                    }
+                }
 
-                    val hasIncome = trend.income > 0L
-                    val hasExpense = trend.expense > 0L
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    monthlyTrends.forEachIndexed { idx, trend ->
+                        val incomeRatio = if (maxAmount > 0L) (trend.income.toFloat() / maxAmount).coerceIn(0.04f, 1f) else 0.04f
+                        val expenseRatio = if (maxAmount > 0L) (trend.expense.toFloat() / maxAmount).coerceIn(0.04f, 1f) else 0.04f
+                        val hasIncome = trend.income > 0L
+                        val hasExpense = trend.expense > 0L
+                        val isSelected = idx == selectedMonthIndex
+                        val dimFactor = if (selectedMonthIndex == -1 || isSelected) 1f else 0.45f
 
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        // Bars container
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            verticalAlignment = Alignment.Bottom,
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom,
                             modifier = Modifier
-                                .height(95.dp)
-                                .padding(horizontal = 4.dp),
-                            content = {
-                                // Income bar
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.07f)
+                                    else Color.Transparent
+                                )
+                                .clickable {
+                                    selectedMonthIndex = if (isSelected) -1 else idx
+                                }
+                                .padding(vertical = 2.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                verticalAlignment = Alignment.Bottom,
+                                modifier = Modifier
+                                    .height(96.dp)
+                                    .padding(horizontal = 5.dp)
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight(
                                             if (hasIncome) (incomeRatio * barGrowth.value).coerceAtLeast(0.03f) else 0.03f
                                         )
-                                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                        .background(if (hasIncome) IncomeColor else IncomeColor.copy(alpha = 0.15f))
+                                        .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
+                                        .background(
+                                            if (hasIncome) incomeTint.copy(alpha = dimFactor)
+                                            else incomeTint.copy(alpha = 0.14f)
+                                        )
                                 )
-                                // Expense bar
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight(
                                             if (hasExpense) (expenseRatio * barGrowth.value).coerceAtLeast(0.03f) else 0.03f
                                         )
-                                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                        .background(if (hasExpense) ExpenseColor else ExpenseColor.copy(alpha = 0.15f))
+                                        .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
+                                        .background(
+                                            if (hasExpense) expenseTint.copy(alpha = dimFactor)
+                                            else expenseTint.copy(alpha = 0.14f)
+                                        )
                                 )
                             }
-                        )
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                        // Month label
-                        Text(
-                            text = trend.monthName,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 10.sp,
-                            maxLines = 1,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
+                            Text(
+                                text = trend.monthName,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -431,49 +613,42 @@ fun CategorySummaryItem(
     val percentageText = "%.1f".format(summary.percentage).toPersianDigits() + "٪"
     val countText = "${summary.transactionCount}".toPersianDigits() + " تراکنش"
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    AppSurfaceCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Category Icon
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .clip(CircleShape)
-                        .background(categoryColor),
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(categoryColor.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = getCategoryIcon(summary.category.icon),
                         contentDescription = summary.category.name,
-                        tint = Color.White,
+                        tint = categoryColor,
                         modifier = Modifier.size(20.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Name & Count
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = summary.category.name,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
@@ -483,23 +658,21 @@ fun CategorySummaryItem(
                     )
                 }
 
-                // Amount & Percentage
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = AmountFormatter.format(summary.totalAmount),
-                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = percentageText,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
                         fontWeight = FontWeight.SemiBold,
                         color = categoryColor
                     )
                 }
             }
 
-            // Animated Percentage Bar
             val animatedPercent = rememberAnimatedProgress(summary.percentage / 100f)
             LinearProgressIndicator(
                 progress = { animatedPercent },
@@ -508,7 +681,7 @@ fun CategorySummaryItem(
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp)),
                 color = categoryColor,
-                trackColor = categoryColor.copy(alpha = 0.2f)
+                trackColor = categoryColor.copy(alpha = 0.16f)
             )
         }
     }

@@ -21,18 +21,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,11 +51,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.local.entity.CategoryEntity
 import com.example.data.local.entity.CategoryType
+import com.example.ui.components.AppSurfaceCard
 import com.example.ui.components.PersianAmountVisualTransformation
+import com.example.ui.components.StatusPill
 import com.example.ui.components.getCategoryIcon
 import com.example.ui.components.rememberAnimatedProgress
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.incomeColor
+import com.example.ui.theme.warningColor
 import com.example.util.AmountFormatter
 import com.example.util.NumberToWords
 import com.example.util.toPersianDigits
@@ -68,11 +71,12 @@ fun FinancialInsightCard(
 ) {
     if (insight == null || (insight.currentMonthExpense == 0L && insight.lastMonthExpense == 0L)) return
 
-    Card(
+    val incomeTint = MaterialTheme.incomeColor
+    val expenseTint = MaterialTheme.expenseColor
+
+    AppSurfaceCard(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
@@ -83,13 +87,13 @@ fun FinancialInsightCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.11f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Savings,
+                        imageVector = Icons.Default.Insights,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
@@ -98,40 +102,44 @@ fun FinancialInsightCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "هوش و بینش مالی",
+                        text = "خلاصه این ماه",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "تحلیل هوشمند خرج‌کرد ماه جاری نسبت به گذشته",
+                        text = "مقایسه هزینه‌ها با ماه قبل",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Month over Month diff badge
             if (insight.expenseDiffPercent != null) {
                 val isIncreased = insight.isExpenseIncreased
                 val diffAbs = kotlin.math.abs(insight.expenseDiffPercent)
                 val diffFormatted = String.format(Locale.US, "%.1f", diffAbs).toPersianDigits()
-                val badgeColor = if (isIncreased) ExpenseColor else IncomeColor
+                val badgeColor = if (isIncreased) expenseTint else incomeTint
                 val icon = if (isIncreased) Icons.Default.TrendingUp else Icons.Default.TrendingDown
                 val statusText = if (isIncreased) {
                     "نسبت به ماه قبل $diffFormatted٪ بیشتر خرج کرده‌اید."
                 } else {
-                    "نسبت به ماه قبل $diffFormatted٪ صرفه‌جویی و کمتر خرج کرده‌اید! 👏"
+                    "نسبت به ماه قبل $diffFormatted٪ کمتر خرج کرده‌اید."
                 }
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(badgeColor.copy(alpha = 0.12f))
+                        .background(badgeColor.copy(alpha = 0.11f))
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(imageVector = icon, contentDescription = null, tint = badgeColor, modifier = Modifier.size(20.dp))
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = badgeColor,
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = statusText,
@@ -142,18 +150,16 @@ fun FinancialInsightCard(
                 }
             }
 
-            // Stats Row: Daily Average & Top Category
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Daily average
-                Card(
+                Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
                 ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             text = "میانگین روزانه",
                             style = MaterialTheme.typography.labelSmall,
@@ -162,21 +168,20 @@ fun FinancialInsightCard(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = AmountFormatter.format(insight.dailyAverageExpenseThisMonth),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
 
-                // Top Spending Category
                 if (insight.topSpendingCategoryName != null && insight.topSpendingCategoryPercent > 0) {
-                    Card(
+                    Surface(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
                     ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
+                        Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 text = "بیشترین خرج ماه",
                                 style = MaterialTheme.typography.labelSmall,
@@ -206,11 +211,13 @@ fun CategoryBudgetSection(
     onSetBudgetClick: (CategoryEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val expenseTint = MaterialTheme.expenseColor
+    val incomeTint = MaterialTheme.incomeColor
+    val warnTint = MaterialTheme.warningColor
+
+    AppSurfaceCard(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
@@ -218,45 +225,39 @@ fun CategoryBudgetSection(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AccountBalanceWallet,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "سقف بودجه ماهانه دسته‌ها",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "کنترل و مدیریت سقف هزینه‌ها در ماه جاری",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.11f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "سقف بودجه ماهانه",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "کنترل سقف هزینه هر دسته در ماه جاری",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
             if (budgetList.isEmpty()) {
                 Text(
-                    text = "هنوز سقف بودجه‌ای برای دسته‌بندی‌ها تنظیم نشده است. می‌توانید با کلیک روی دسته‌ها سقف هزینه تعیین کنید.",
+                    text = "هنوز سقف بودجه‌ای تنظیم نشده است. برای هر دسته می‌توانید سقف ماهانه تعیین کنید.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -264,16 +265,16 @@ fun CategoryBudgetSection(
                 budgetList.forEach { item ->
                     val progressFraction = (item.percentage / 100f).coerceIn(0f, 1f)
                     val progressColor = when {
-                        item.percentage >= 100f -> ExpenseColor
-                        item.percentage >= 75f -> Color(0xFFF57C00) // Orange warning
-                        else -> IncomeColor
+                        item.percentage >= 100f -> expenseTint
+                        item.percentage >= 75f -> warnTint
+                        else -> incomeTint
                     }
 
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                             .clickable { onSetBudgetClick(item.category) }
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -287,8 +288,8 @@ fun CategoryBudgetSection(
                                 Box(
                                     modifier = Modifier
                                         .size(28.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(item.category.color).copy(alpha = 0.2f)),
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(item.category.color).copy(alpha = 0.18f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -308,7 +309,7 @@ fun CategoryBudgetSection(
 
                             Text(
                                 text = "${AmountFormatter.format(item.spentThisMonth)} از ${AmountFormatter.format(item.budget)}",
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -327,25 +328,25 @@ fun CategoryBudgetSection(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (item.isOverBudget) {
-                                Text(
-                                    text = "⚠️ عبور از سقف مجاز (${String.format(Locale.US, "%.0f", item.percentage).toPersianDigits()}٪)",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = ExpenseColor,
-                                    fontWeight = FontWeight.Bold
+                                StatusPill(
+                                    text = "عبور از سقف (${String.format(Locale.US, "%.0f", item.percentage).toPersianDigits()}٪)",
+                                    icon = Icons.Default.WarningAmber,
+                                    tint = expenseTint
                                 )
                             } else {
                                 Text(
                                     text = "باقیمانده: ${AmountFormatter.format(item.remaining)}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = IncomeColor,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                                    color = incomeTint,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = "${String.format(Locale.US, "%.0f", item.percentage).toPersianDigits()}٪ مصرف شده",
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -354,7 +355,6 @@ fun CategoryBudgetSection(
                 }
             }
 
-            // Quick button to pick an expense category and set budget
             val expenseCats = remember(allCategories) {
                 allCategories.filter { it.type == CategoryType.EXPENSE || it.type == CategoryType.BOTH }
             }
@@ -367,7 +367,7 @@ fun CategoryBudgetSection(
                 ) {
                     Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("تنظیم یا تغییر سقف بودجه دسته‌ها")
+                    Text("تنظیم یا تغییر سقف بودجه")
                 }
 
                 if (showCatPickerForBudget) {
@@ -396,8 +396,8 @@ fun CategoryBudgetSection(
                                         Box(
                                             modifier = Modifier
                                                 .size(28.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(cat.color).copy(alpha = 0.2f)),
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color(cat.color).copy(alpha = 0.18f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -445,11 +445,11 @@ fun BudgetEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("سقف بودجه ماهانه: ${category.name}", fontWeight = FontWeight.Bold) },
+        title = { Text("سقف بودجه: ${category.name}", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "سقف مجاز خرج‌کرد ماهانه این دسته را به ${AmountFormatter.BASE_CURRENCY_LABEL} وارد کنید (برای حذف سقف، خالی بگذارید یا عدد ۰ وارد کنید):",
+                    text = "سقف ماهانه این دسته را به ${AmountFormatter.BASE_CURRENCY_LABEL} وارد کنید (برای حذف، خالی بگذارید):",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -486,7 +486,7 @@ fun BudgetEditDialog(
                 },
                 modifier = Modifier.testTag("budget_edit_save_button")
             ) {
-                Text("ذخیره سقف")
+                Text("ذخیره")
             }
         },
         dismissButton = {

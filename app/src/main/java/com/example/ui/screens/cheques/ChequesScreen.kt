@@ -69,9 +69,12 @@ import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.ChequeEntity
 import com.example.data.local.entity.ChequeStatus
 import com.example.data.local.entity.ChequeType
+import androidx.compose.material.icons.filled.WarningAmber
 import com.example.ui.components.EmptyState
-import com.example.ui.theme.ExpenseColor
-import com.example.ui.theme.IncomeColor
+import com.example.ui.components.StatusPill
+import com.example.ui.components.subtleCardBorder
+import com.example.ui.theme.expenseColor
+import com.example.ui.theme.incomeColor
 import com.example.util.AmountFormatter
 import com.example.util.DateFormatter
 import com.example.util.toPersianDigits
@@ -133,6 +136,9 @@ fun ChequesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            val expenseTint = MaterialTheme.expenseColor
+            val incomeTint = MaterialTheme.incomeColor
+
             // Header Stats Cards
             Row(
                 modifier = Modifier
@@ -144,20 +150,21 @@ fun ChequesScreen(
                 Card(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = ExpenseColor.copy(alpha = 0.08f))
+                    border = subtleCardBorder(0.55f),
+                    colors = CardDefaults.cardColors(containerColor = expenseTint.copy(alpha = 0.08f))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             text = "پرداختی در انتظار",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ExpenseColor
+                            color = expenseTint
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = AmountFormatter.format(state.pendingPayableTotal),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                             fontWeight = FontWeight.Bold,
-                            color = ExpenseColor
+                            color = expenseTint
                         )
                     }
                 }
@@ -166,20 +173,21 @@ fun ChequesScreen(
                 Card(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = IncomeColor.copy(alpha = 0.08f))
+                    border = subtleCardBorder(0.55f),
+                    colors = CardDefaults.cardColors(containerColor = incomeTint.copy(alpha = 0.08f))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             text = "دریافتی در انتظار",
                             style = MaterialTheme.typography.bodySmall,
-                            color = IncomeColor
+                            color = incomeTint
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = AmountFormatter.format(state.pendingReceivableTotal),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                             fontWeight = FontWeight.Bold,
-                            color = IncomeColor
+                            color = incomeTint
                         )
                     }
                 }
@@ -265,7 +273,7 @@ fun ChequesScreen(
                         viewModel.delete(cheque)
                         chequeToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseColor)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.expenseColor)
                 ) {
                     Text("حذف")
                 }
@@ -289,7 +297,9 @@ fun ChequeItemCard(
     modifier: Modifier = Modifier
 ) {
     val isPayable = cheque.type == ChequeType.PAYABLE
-    val typeColor = if (isPayable) ExpenseColor else IncomeColor
+    val expenseTint = MaterialTheme.expenseColor
+    val incomeTint = MaterialTheme.incomeColor
+    val typeColor = if (isPayable) expenseTint else incomeTint
     val now = System.currentTimeMillis()
     val isPastDue = cheque.status == ChequeStatus.PENDING && cheque.dueDate < now
     var showMenu by remember { mutableStateOf(false) }
@@ -297,10 +307,11 @@ fun ChequeItemCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
+        border = subtleCardBorder(),
         colors = CardDefaults.cardColors(
-            containerColor = if (isPastDue) ExpenseColor.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface
+            containerColor = if (isPastDue) expenseTint.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -376,8 +387,8 @@ fun ChequeItemCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("حذف چک", color = ExpenseColor) },
-                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = ExpenseColor) },
+                            text = { Text("حذف چک", color = expenseTint) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = expenseTint) },
                             onClick = {
                                 onDelete()
                                 showMenu = false
@@ -432,14 +443,14 @@ fun ChequeItemCard(
                     Icon(
                         imageVector = Icons.Default.CalendarMonth,
                         contentDescription = null,
-                        tint = if (isPastDue) ExpenseColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (isPastDue) expenseTint else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "سررسید: ${DateFormatter.formatJalali(cheque.dueDate)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isPastDue) ExpenseColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isPastDue) expenseTint else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (isPastDue) FontWeight.Bold else FontWeight.Normal
                     )
                 }
@@ -456,28 +467,36 @@ fun ChequeItemCard(
                 val statusText = when (cheque.status) {
                     ChequeStatus.PENDING -> "در انتظار سررسید"
                     ChequeStatus.CLEARED -> "پاس‌شده / وصول‌شده"
-                    ChequeStatus.BOUNCED -> "برگشت‌خورده ⚠️"
+                    ChequeStatus.BOUNCED -> "برگشت‌خورده"
                     ChequeStatus.CANCELLED -> "باطل‌شده"
                 }
                 val statusColor = when (cheque.status) {
                     ChequeStatus.PENDING -> MaterialTheme.colorScheme.primary
-                    ChequeStatus.CLEARED -> IncomeColor
-                    ChequeStatus.BOUNCED -> ExpenseColor
+                    ChequeStatus.CLEARED -> incomeTint
+                    ChequeStatus.BOUNCED -> expenseTint
                     ChequeStatus.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
 
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = statusColor,
-                    fontWeight = FontWeight.Bold
-                )
+                if (cheque.status == ChequeStatus.BOUNCED) {
+                    StatusPill(
+                        text = statusText,
+                        icon = Icons.Default.WarningAmber,
+                        tint = expenseTint
+                    )
+                } else {
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = statusColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
                 if (cheque.status == ChequeStatus.PENDING) {
                     Button(
                         onClick = onClearClicked,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = IncomeColor)
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = incomeTint)
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -553,7 +572,7 @@ fun ClearChequeDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirm(selectedAccountId) },
-                colors = ButtonDefaults.buttonColors(containerColor = IncomeColor)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.incomeColor)
             ) {
                 Text("تأیید و تسویه")
             }

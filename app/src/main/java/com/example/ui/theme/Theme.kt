@@ -9,15 +9,20 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 
+val LocalIsDarkTheme = compositionLocalOf { false }
+
 private val DarkColorScheme = darkColorScheme(
     primary = DarkGreenDarkPrimary,
     primaryContainer = DarkGreenDarkPrimaryContainer,
     onPrimary = DarkGreenDarkOnPrimary,
+    onPrimaryContainer = DarkGreenDarkOnPrimaryContainer,
+    secondary = BrandGoldDark,
     background = DarkBackground,
     surface = DarkSurface,
     onBackground = DarkOnBackground,
@@ -32,6 +37,8 @@ private val LightColorScheme = lightColorScheme(
     primary = DarkGreenPrimary,
     primaryContainer = DarkGreenPrimaryContainer,
     onPrimary = DarkGreenOnPrimary,
+    onPrimaryContainer = DarkGreenOnPrimaryContainer,
+    secondary = BrandGold,
     background = LightBackground,
     surface = LightSurface,
     onBackground = LightOnBackground,
@@ -57,7 +64,10 @@ fun FinTrackTheme(
         else -> LightColorScheme
     }
 
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    CompositionLocalProvider(
+        LocalLayoutDirection provides LayoutDirection.Rtl,
+        LocalIsDarkTheme provides darkTheme
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             shapes = Shapes,
@@ -69,12 +79,20 @@ fun FinTrackTheme(
 
 val MaterialTheme.expenseColor: Color
     @Composable
-    get() = if (isSystemInDarkTheme()) ExpenseColorDark else ExpenseColor
+    get() = if (LocalIsDarkTheme.current) ExpenseColorDark else ExpenseColor
 
 val MaterialTheme.incomeColor: Color
     @Composable
-    get() = if (isSystemInDarkTheme()) IncomeColorDark else IncomeColor
+    get() = if (LocalIsDarkTheme.current) IncomeColorDark else IncomeColor
 
 val MaterialTheme.transferColor: Color
     @Composable
-    get() = if (isSystemInDarkTheme()) TransferColorDark else TransferColor
+    get() = if (LocalIsDarkTheme.current) TransferColorDark else TransferColor
+
+val MaterialTheme.warningColor: Color
+    @Composable
+    get() = if (LocalIsDarkTheme.current) WarningColorDark else WarningColor
+
+val MaterialTheme.goldAccent: Color
+    @Composable
+    get() = if (LocalIsDarkTheme.current) BrandGoldDark else BrandGold

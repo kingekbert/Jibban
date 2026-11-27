@@ -80,3 +80,38 @@ class Preferences(private val context: Context) {
             prefs.edit().putStringSet(Constants.KEY_NOTIFIED_SMS_HASHES, trimmed).apply()
         }
 }
+
+object BalancePrivacyState {
+    private val _isBalanceHidden = kotlinx.coroutines.flow.MutableStateFlow(true)
+    val isBalanceHidden: kotlinx.coroutines.flow.StateFlow<Boolean> = _isBalanceHidden
+
+    @Volatile
+    private var initialized = false
+
+    fun ensureInitialized(context: Context) {
+        if (initialized) return
+        synchronized(this) {
+            if (initialized) return
+            val prefs = context.applicationContext.getSharedPreferences(
+                Constants.PREFS_NAME,
+                Context.MODE_PRIVATE
+            )
+            _isBalanceHidden.value = prefs.getBoolean(Constants.KEY_BALANCE_HIDDEN, true)
+            initialized = true
+        }
+    }
+
+    fun toggle(context: Context) {
+        setHidden(context, !_isBalanceHidden.value)
+    }
+
+    fun setHidden(context: Context, hidden: Boolean) {
+        _isBalanceHidden.value = hidden
+        initialized = true
+        val prefs = context.applicationContext.getSharedPreferences(
+            Constants.PREFS_NAME,
+            Context.MODE_PRIVATE
+        )
+        prefs.edit().putBoolean(Constants.KEY_BALANCE_HIDDEN, hidden).apply()
+    }
+}

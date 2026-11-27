@@ -19,6 +19,7 @@ object Constants {
     const val KEY_PERIODIC_SMS_SCAN_ENABLED = "key_periodic_sms_scan_enabled"
     const val KEY_PERIODIC_SMS_SCAN_INTERVAL_HOURS = "key_periodic_sms_scan_interval_hours"
     const val KEY_NOTIFIED_SMS_HASHES = "key_notified_sms_hashes"
+    const val KEY_BALANCE_HIDDEN = "key_balance_hidden"
 
     // Default Values
     const val DEFAULT_ACCOUNT_ID = 1L
