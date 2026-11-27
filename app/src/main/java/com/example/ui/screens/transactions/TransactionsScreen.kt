@@ -29,11 +29,15 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
@@ -95,6 +99,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.CardDefaults
+import com.example.ui.components.EmptyState
 import com.example.ui.components.FilterBottomSheet
 import com.example.ui.components.TransactionCard
 import com.example.ui.components.getCategoryIcon
@@ -113,6 +118,7 @@ fun TransactionsScreen(
     viewModel: TransactionsViewModel,
     onNavigateToEditTransaction: (Long) -> Unit,
     onNavigateToAddTransaction: () -> Unit = {},
+    onNavigateToScanSms: (() -> Unit)? = null,
     onToggleFullscreen: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -286,7 +292,7 @@ fun TransactionsScreen(
                         ) {
                             Icon(
                                 imageVector = if (state.isSearchActive) Icons.Default.Close else Icons.Default.Search,
-                                contentDescription = "جستجو"
+                                contentDescription = if (state.isSearchActive) "بستن جستجو" else "جستجو"
                             )
                         }
                         BadgedBox(
@@ -461,18 +467,37 @@ fun TransactionsScreen(
                 }
 
                 // Grouped Transaction List
-                if (state.groupedTransactions.isEmpty()) {
+                if (state.groupedTransactions.isEmpty() && !state.isLoading) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "هیچ تراکنشی یافت نشد.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (state.hasActiveSearchOrFilters) {
+                            EmptyState(
+                                icon = Icons.Default.SearchOff,
+                                title = "تراکنشی با این فیلترها پیدا نشد",
+                                subtitle = "با عبارت جستجو یا فیلترهای فعال فعلی موردی مطابقت ندارد. می‌توانید فیلترها را پاک کنید تا همه تراکنش‌ها نمایش داده شوند.",
+                                buttonText = "پاک کردن فیلترها",
+                                buttonIcon = Icons.Default.FilterAltOff,
+                                onButtonClick = { viewModel.clearSearchAndFilters() },
+                                testTag = "transactions_filtered_empty_state"
+                            )
+                        } else {
+                            EmptyState(
+                                icon = Icons.Default.ReceiptLong,
+                                title = "هنوز تراکنشی ثبت نشده است",
+                                subtitle = "برای شروع مدیریت مالی، اولین هزینه یا درآمد خود را ثبت کنید یا پیامک‌های بانکی را برای ثبت خودکار اسکن نمایید.",
+                                buttonText = "ثبت تراکنش جدید",
+                                buttonIcon = Icons.Default.Add,
+                                onButtonClick = onNavigateToAddTransaction,
+                                secondaryButtonText = if (onNavigateToScanSms != null) "اسکن پیامک‌های بانکی" else null,
+                                secondaryButtonIcon = Icons.Default.Sms,
+                                onSecondaryButtonClick = onNavigateToScanSms,
+                                testTag = "transactions_empty_state"
+                            )
+                        }
                     }
                 } else {
                     LazyColumn(
@@ -482,8 +507,18 @@ fun TransactionsScreen(
                     ) {
                         state.groupedTransactions.forEach { (dateHeader, transactions) ->
                             item(key = dateHeader) {
-                                val dayIncome = transactions.filter { it.transaction.type == TransactionType.INCOME }.sumOf { it.transaction.amount }
-                                val dayExpense = transactions.filter { it.transaction.type == TransactionType.EXPENSE }.sumOf { it.transaction.amount }
+                                val (dayIncome, dayExpense) = remember(transactions) {
+                                    var income = 0L
+                                    var expense = 0L
+                                    transactions.forEach { item ->
+                                        when (item.transaction.type) {
+                                            TransactionType.INCOME -> income += item.transaction.amount
+                                            TransactionType.EXPENSE -> expense += item.transaction.amount
+                                            TransactionType.TRANSFER -> Unit
+                                        }
+                                    }
+                                    income to expense
+                                }
 
                                 Row(
                                     modifier = Modifier
@@ -671,7 +706,7 @@ fun TransactionsScreen(
                     ) {
                         IconButton(
                             onClick = { viewModel.zoomIn() },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
@@ -681,7 +716,7 @@ fun TransactionsScreen(
                         }
                         IconButton(
                             onClick = { viewModel.zoomOut() },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Remove,
@@ -691,7 +726,7 @@ fun TransactionsScreen(
                         }
                         IconButton(
                             onClick = { viewModel.toggleFullscreen() },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.FullscreenExit,

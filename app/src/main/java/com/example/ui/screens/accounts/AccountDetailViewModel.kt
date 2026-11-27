@@ -42,8 +42,9 @@ class AccountDetailViewModel(
         accountRepository.getAccountWithBalance(accountId),
         transactionRepository.getTransactionsByAccount(accountId),
         smsPatternRepository.allPatterns,
-        reconciliationRepository.getLatestSnapshotFlow(accountId)
-    ) { accountWithBalance, transactions, allPatterns, latestSnapshot ->
+        reconciliationRepository.getLatestSnapshotFlow(accountId),
+        reconciliationRepository.getAdjustmentsForAccount(accountId)
+    ) { accountWithBalance, transactions, allPatterns, latestSnapshot, adjustments ->
         var incomeSum = 0L
         var expenseSum = 0L
 
@@ -73,10 +74,12 @@ class AccountDetailViewModel(
 
         val appBalAtSnapshot = if (account != null && latestSnapshot != null) {
             val txEntities = transactions.map { it.transaction }.filter { it.date <= latestSnapshot.smsDate }
+            val adjEntities = adjustments.filter { it.date <= latestSnapshot.smsDate }
             com.example.util.BalanceReconciliationEngine.calculateAppBalance(
                 initialBalance = account.initialBalance,
                 accountId = accountId,
-                transactionsUpToDate = txEntities
+                transactionsUpToDate = txEntities,
+                adjustmentsUpToDate = adjEntities
             )
         } else {
             accountWithBalance?.currentBalance ?: 0L

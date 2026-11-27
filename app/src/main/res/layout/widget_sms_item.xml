@@ -44,7 +44,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
-            android:text="۵۰,۰۰۰ تومان"
+            android:text="۵۰۰,۰۰۰ ریال"
             android:textColor="@color/widget_expense_color"
             android:textSize="13sp"
             android:textStyle="bold" />

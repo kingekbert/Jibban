@@ -44,6 +44,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -508,8 +509,10 @@ internal fun PreConfirmGroupExpenseCard(
                 }
             }
 
-            val availableSuggestions = state.recentPersonNames.filter { name ->
-                state.groupShares.none { it.name.equals(name, ignoreCase = true) }
+            val availableSuggestions = remember(state.recentPersonNames, state.groupShares) {
+                state.recentPersonNames.filter { name ->
+                    state.groupShares.none { it.name.equals(name, ignoreCase = true) }
+                }
             }
             if (availableSuggestions.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -522,7 +525,7 @@ internal fun PreConfirmGroupExpenseCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        items(availableSuggestions) { name ->
+                        items(availableSuggestions, key = { it }) { name ->
                             AssistChip(
                                 onClick = { onAddPerson(name) },
                                 label = { Text(name) },

@@ -26,9 +26,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FilterAltOff
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -58,12 +62,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.entity.ExtractedField
 import com.example.data.local.entity.FieldType
+import com.example.ui.components.EmptyState
 import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
 import com.example.util.toPersianDigits
@@ -161,7 +167,7 @@ fun SmsPatternLearnerScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(state.accounts) { acc ->
+                    items(state.accounts, key = { it.id }) { acc ->
                         val isSelected = state.selectedAccountId == acc.id
                         FilterChip(
                             selected = isSelected,
@@ -240,7 +246,10 @@ fun SmsPatternLearnerScreen(
                     )
                 }
 
-                items(state.extractedFields.size) { index ->
+                items(
+                    count = state.extractedFields.size,
+                    key = { index -> "${index}_${state.extractedFields[index].text}" }
+                ) { index ->
                     val field = state.extractedFields[index]
                     ExtractedFieldRow(
                         field = field,
@@ -285,87 +294,238 @@ fun SmsPatternLearnerScreen(
                 }
             }
 
-            // Existing Saved Patterns
-            if (state.existingPatterns.isNotEmpty()) {
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("الگوهای فعال ذخیره‌شده", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                }
+            // Existing Saved Patterns (Searchable & Filterable)
+            item {
+                val filteredCount = state.filteredPatterns.size
+                val totalCount = state.existingPatterns.size
 
-                items(state.existingPatterns) { pattern ->
-                    val isCurrentlyEditing = state.editingPatternId == pattern.id
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "الگوهای فعال ذخیره‌شده",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (totalCount > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+                        ) {
+                            Text(
+                                text = if (state.hasActivePatternFilters) {
+                                    "${filteredCount.toPersianDigits()} از ${totalCount.toPersianDigits()} الگو"
+                                } else {
+                                    "${totalCount.toPersianDigits()} الگو"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (state.existingPatterns.isEmpty()) {
+                item {
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.editPattern(pattern) },
-                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isCurrentlyEditing)
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        ),
-                        border = if (isCurrentlyEditing)
-                            androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                        else null
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        )
                     ) {
-                        Row(
+                        EmptyState(
+                            icon = Icons.Default.AutoAwesome,
+                            title = "هنوز الگوی پیامکی ذخیره نشده است",
+                            subtitle = "متن یک پیامک بانکی را در کادر بالا وارد کنید و دکمه «تحلیل و تفکیک اجزای پیامک» را بزنید تا اولین الگوی هوشمند شما ساخته شود.",
+                            buttonText = null,
+                            compact = true,
+                            testTag = "patterns_empty_state"
+                        )
+                    }
+                }
+            } else {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = state.patternSearchQuery,
+                            onValueChange = { viewModel.setPatternSearchQuery(it) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        pattern.bankName ?: "بانک نامشخص",
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    if (isCurrentlyEditing) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(4.dp))
-                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = "در حال ویرایش",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
+                                .testTag("pattern_search_input"),
+                            placeholder = { Text("جستجو بر اساس بانک، شماره حساب یا متن پیامک...") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "جستجو در الگوها",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            trailingIcon = if (state.patternSearchQuery.isNotEmpty()) {
+                                {
+                                    IconButton(onClick = { viewModel.setPatternSearchQuery("") }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "پاک کردن جستجو"
+                                        )
                                     }
                                 }
-                                if (pattern.accountIdentifier.isNotBlank()) {
+                            } else null,
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        val hasFilterOptions = state.selectedAccount != null || state.availableBankFilters.isNotEmpty()
+                        if (hasFilterOptions) {
+                            LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("pattern_filter_chips"),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                item(key = "filter_all") {
+                                    FilterChip(
+                                        selected = !state.filterOnlySelectedAccount && state.selectedBankFilter == null,
+                                        onClick = {
+                                            viewModel.setFilterOnlySelectedAccount(false)
+                                            viewModel.setBankFilter(null)
+                                        },
+                                        label = { Text("همه (${state.existingPatterns.size.toPersianDigits()})") },
+                                        modifier = Modifier.testTag("pattern_filter_all")
+                                    )
+                                }
+
+                                state.selectedAccount?.let { selectedAcc ->
+                                    item(key = "filter_selected_account") {
+                                        FilterChip(
+                                            selected = state.filterOnlySelectedAccount,
+                                            onClick = {
+                                                viewModel.setFilterOnlySelectedAccount(!state.filterOnlySelectedAccount)
+                                            },
+                                            label = { Text("حساب: ${selectedAcc.name}") },
+                                            modifier = Modifier.testTag("pattern_filter_selected_account")
+                                        )
+                                    }
+                                }
+
+                                items(state.availableBankFilters, key = { "bank_$it" }) { bank ->
+                                    val isBankSelected = state.selectedBankFilter != null &&
+                                        SmsPatternLearnerViewModel.normalizeSearchText(state.selectedBankFilter!!) ==
+                                        SmsPatternLearnerViewModel.normalizeSearchText(bank)
+                                    FilterChip(
+                                        selected = isBankSelected,
+                                        onClick = { viewModel.setBankFilter(bank) },
+                                        label = { Text(bank) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (state.filteredPatterns.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            )
+                        ) {
+                            EmptyState(
+                                icon = Icons.Default.SearchOff,
+                                title = "الگویی با این جستجو یا فیلتر پیدا نشد",
+                                subtitle = "عبارت جستجو را تغییر دهید یا فیلترهای فعال را پاک کنید تا همه الگوهای ذخیره‌شده نمایش داده شوند.",
+                                buttonText = "پاک کردن جستجو و فیلتر",
+                                buttonIcon = Icons.Default.FilterAltOff,
+                                onButtonClick = { viewModel.clearPatternSearchAndFilters() },
+                                compact = true,
+                                testTag = "patterns_filtered_empty_state"
+                            )
+                        }
+                    }
+                } else {
+                    items(state.filteredPatterns, key = { it.id }) { pattern ->
+                        val isCurrentlyEditing = state.editingPatternId == pattern.id
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.editPattern(pattern) },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isCurrentlyEditing)
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ),
+                            border = if (isCurrentlyEditing)
+                                androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                            else null
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            pattern.bankName ?: "بانک نامشخص",
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        if (isCurrentlyEditing) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = "در حال ویرایش",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                    if (pattern.accountIdentifier.isNotBlank()) {
+                                        Text(
+                                            "شناسه: ${pattern.accountIdentifier}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                     Text(
-                                        "شناسه: ${pattern.accountIdentifier}",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        pattern.sampleSms.take(60) + if (pattern.sampleSms.length > 60) "..." else "",
+                                        style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Text(
-                                    pattern.sampleSms.take(60) + if (pattern.sampleSms.length > 60) "..." else "",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = { viewModel.editPattern(pattern) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "ویرایش",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                IconButton(onClick = { viewModel.deletePattern(pattern.id) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "حذف",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = { viewModel.editPattern(pattern) }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "ویرایش",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    IconButton(onClick = { viewModel.deletePattern(pattern.id) }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "حذف",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                         }

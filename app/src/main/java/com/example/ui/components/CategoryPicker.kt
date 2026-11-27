@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -38,7 +39,9 @@ fun CategoryPicker(
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
     onCategorySelected: (CategoryEntity) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    maxVisibleCount: Int? = null,
+    prioritizeSelected: Boolean = false
 ) {
     if (categories.isEmpty()) {
         Box(
@@ -56,15 +59,27 @@ fun CategoryPicker(
         return
     }
 
-    val sortedCategories = remember(categories) {
-        categories.sortedWith(compareByDescending<CategoryEntity> { it.isFavorite }.thenBy { it.name })
+    val visibleCategories = remember(categories, selectedCategoryId, maxVisibleCount, prioritizeSelected) {
+        val sorted = categories.sortedWith(compareByDescending<CategoryEntity> { it.isFavorite }.thenBy { it.name })
+        if (maxVisibleCount == null || maxVisibleCount <= 0 || sorted.size <= maxVisibleCount) {
+            sorted
+        } else {
+            val baseSlice = sorted.take(maxVisibleCount).toMutableList()
+            if (prioritizeSelected && selectedCategoryId != null && baseSlice.none { it.id == selectedCategoryId }) {
+                val selected = sorted.find { it.id == selectedCategoryId }
+                if (selected != null) {
+                    baseSlice[baseSlice.lastIndex] = selected
+                }
+            }
+            baseSlice
+        }
     }
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        val rows = sortedCategories.chunked(4)
+        val rows = visibleCategories.chunked(4)
         rows.forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -101,6 +116,7 @@ private fun CategoryPickerItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .fillMaxWidth()
+            .testTag("category_item_${category.id}")
             .clip(RoundedCornerShape(14.dp))
             .background(
                 if (isSelected) categoryColor.copy(alpha = 0.18f)
@@ -112,7 +128,7 @@ private fun CategoryPickerItem(
                 shape = RoundedCornerShape(14.dp)
             )
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 4.dp)
+            .padding(vertical = 7.dp, horizontal = 4.dp)
     ) {
         Box(
             modifier = Modifier.size(46.dp),

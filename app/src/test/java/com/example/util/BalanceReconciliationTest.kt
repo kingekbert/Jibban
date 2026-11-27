@@ -1,5 +1,6 @@
 package com.example.util
 
+import com.example.data.local.entity.AccountBalanceAdjustmentEntity
 import com.example.data.local.entity.AccountBalanceSnapshotEntity
 import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.AccountType
@@ -261,5 +262,53 @@ class BalanceReconciliationTest {
             historyDiffsChronological = listOf(0L)
         )
         assertNull(causeZero)
+    }
+
+    @Test
+    fun testCalculateAppBalanceWithIsolatedAdjustmentsReconcilesDiffToZero() {
+        val accountId = 10L
+        val initialBalance = 5_000_000L
+        val transactions = listOf(
+            TransactionEntity(
+                id = 1L,
+                amount = 1_200_000L,
+                type = TransactionType.EXPENSE,
+                date = 10_000L,
+                categoryId = 2L,
+                accountId = accountId
+            )
+        )
+        // Before adjustment: appBalance = 3,800,000 Rials; bankBalance = 3,550,000 Rials -> diff = -250,000 Rials
+        val beforeBalance = BalanceReconciliationEngine.calculateAppBalance(initialBalance, accountId, transactions)
+        assertEquals(3_800_000L, beforeBalance)
+        val diff = BalanceReconciliationEngine.calculateDiff(bankBalance = 3_550_000L, appBalance = beforeBalance)
+        assertEquals(-250_000L, diff)
+
+        // Apply isolated negative adjustment of -250,000 Rials for accountId, plus an unrelated account's adjustment
+        val adjustments = listOf(
+            AccountBalanceAdjustmentEntity(
+                id = 1L,
+                accountId = accountId,
+                amount = diff,
+                date = 10_000L,
+                note = "تراز ایزوله مانده"
+            ),
+            AccountBalanceAdjustmentEntity(
+                id = 2L,
+                accountId = 99L,
+                amount = 9_999_999L,
+                date = 10_000L,
+                note = "حساب دیگر"
+            )
+        )
+
+        val afterBalance = BalanceReconciliationEngine.calculateAppBalance(
+            initialBalance = initialBalance,
+            accountId = accountId,
+            transactionsUpToDate = transactions,
+            adjustmentsUpToDate = adjustments
+        )
+        assertEquals(3_550_000L, afterBalance)
+        assertEquals(0L, BalanceReconciliationEngine.calculateDiff(3_550_000L, afterBalance))
     }
 }

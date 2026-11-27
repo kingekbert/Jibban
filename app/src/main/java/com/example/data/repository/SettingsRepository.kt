@@ -7,6 +7,10 @@ class SettingsRepository(private val preferences: Preferences) {
         get() = preferences.lastAccountId
         set(value) { preferences.lastAccountId = value }
 
+    var lastToAccountId: Long
+        get() = preferences.lastToAccountId
+        set(value) { preferences.lastToAccountId = value }
+
     var lastCategoryId: Long
         get() = preferences.lastCategoryId
         set(value) { preferences.lastCategoryId = value }

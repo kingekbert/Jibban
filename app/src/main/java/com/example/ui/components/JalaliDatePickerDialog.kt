@@ -614,7 +614,7 @@ private fun YearSelectorGrid(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(years) { year ->
+        items(years, key = { it }) { year ->
             val isSelected = year == selectedYear
             val isCurrent = year == currentYear
             Surface(
@@ -632,7 +632,7 @@ private fun YearSelectorGrid(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp),
+                        .height(48.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -669,7 +669,7 @@ private fun MonthSelectorGrid(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        items(months) { month ->
+        items(months, key = { it }) { month ->
             val isSelected = month == selectedMonth
             val isCurrent = month == currentMonth
             Surface(
@@ -687,7 +687,7 @@ private fun MonthSelectorGrid(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp),
+                        .height(48.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

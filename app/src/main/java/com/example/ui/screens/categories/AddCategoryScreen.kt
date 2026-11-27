@@ -48,10 +48,16 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardType
 import com.example.data.local.entity.CategoryType
 import com.example.ui.components.AppColorPalette
 import com.example.ui.components.AppIconsList
+import com.example.ui.components.PersianAmountVisualTransformation
 import com.example.ui.components.getCategoryIcon
+import com.example.util.AmountFormatter
+import com.example.util.NumberToWords
 
 val CategoryIconsList = AppIconsList
 val CategoryColorPalette = AppColorPalette
@@ -142,18 +148,33 @@ fun AddCategoryScreen(
                 )
             }
 
-            // Monthly Budget (for Expense/Both categories)
+            // Monthly Budget in Rials (for Expense/Both categories)
             if (state.type != CategoryType.INCOME) {
                 Text("سقف بودجه ماهانه (اختیاری)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 OutlinedTextField(
-                    value = if (state.monthlyBudget > 0) (state.monthlyBudget / 10).toString() else "",
+                    value = if (state.monthlyBudget > 0L) state.monthlyBudget.toString() else "",
                     onValueChange = { str ->
-                        val toman = str.filter { it.isDigit() }.toLongOrNull() ?: 0L
-                        viewModel.setMonthlyBudget(toman * 10)
+                        val sanitized = AmountFormatter.sanitizeAmountDigits(str)
+                        val rial = AmountFormatter.parseAmount(sanitized)
+                        viewModel.setMonthlyBudget(rial)
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("سقف مجاز خرج‌کرد ماهانه (تومان)") },
-                    placeholder = { Text("مثال: ۲،۰۰۰،۰۰۰") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("category_monthly_budget_input"),
+                    label = { Text("سقف مجاز خرج‌کرد ماهانه (${AmountFormatter.BASE_CURRENCY_LABEL})") },
+                    placeholder = { Text("مثال: ۲۰,۰۰۰,۰۰۰") },
+                    suffix = { Text(AmountFormatter.BASE_CURRENCY_LABEL) },
+                    supportingText = {
+                        Text(
+                            text = if (state.monthlyBudget > 0L) {
+                                NumberToWords.convert(state.monthlyBudget, suffix = AmountFormatter.BASE_CURRENCY_LABEL)
+                            } else {
+                                "واحد پایه ریال است؛ برای بدون سقف، خالی بگذارید یا ۰ وارد کنید."
+                            }
+                        )
+                    },
+                    visualTransformation = remember { PersianAmountVisualTransformation() },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
                 )

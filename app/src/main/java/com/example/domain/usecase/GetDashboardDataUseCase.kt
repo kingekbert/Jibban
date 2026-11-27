@@ -4,8 +4,10 @@ import com.example.data.repository.AccountRepository
 import com.example.data.repository.TransactionRepository
 import com.example.domain.model.DashboardSummary
 import com.example.util.JalaliDate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 
 class GetDashboardDataUseCase(
     private val accountRepository: AccountRepository,
@@ -35,6 +37,6 @@ class GetDashboardDataUseCase(
                 recentTransactions = recentTx,
                 accounts = accounts
             )
-        }
+        }.flowOn(Dispatchers.Default)
     }
 }

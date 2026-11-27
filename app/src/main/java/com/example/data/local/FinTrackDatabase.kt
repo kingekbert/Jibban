@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.local.dao.AccountDao
 import com.example.data.local.dao.CategoryDao
@@ -13,9 +12,6 @@ import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.CategoryEntity
 import com.example.data.local.entity.TransactionEntity
 import com.example.util.Constants
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @Database(
     entities = [
@@ -31,10 +27,11 @@ import kotlinx.coroutines.launch
         com.example.data.local.entity.GroupExpenseEntity::class,
         com.example.data.local.entity.GroupExpenseShareEntity::class,
         com.example.data.local.entity.AccountSmsSenderEntity::class,
-        com.example.data.local.entity.AccountBalanceSnapshotEntity::class
+        com.example.data.local.entity.AccountBalanceSnapshotEntity::class,
+        com.example.data.local.entity.AccountBalanceAdjustmentEntity::class
     ],
     version = FinTrackDatabase.DATABASE_VERSION,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class FinTrackDatabase : RoomDatabase() {
 
@@ -49,9 +46,10 @@ abstract class FinTrackDatabase : RoomDatabase() {
     abstract fun groupExpenseDao(): com.example.data.local.dao.GroupExpenseDao
     abstract fun accountSmsSenderDao(): com.example.data.local.dao.AccountSmsSenderDao
     abstract fun accountBalanceSnapshotDao(): com.example.data.local.dao.AccountBalanceSnapshotDao
+    abstract fun accountBalanceAdjustmentDao(): com.example.data.local.dao.AccountBalanceAdjustmentDao
 
     companion object {
-        const val DATABASE_VERSION = 13
+        const val DATABASE_VERSION = 14
 
         @Volatile
         private var INSTANCE: FinTrackDatabase? = null
@@ -266,6 +264,24 @@ abstract class FinTrackDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_13_14 = object : androidx.room.migration.Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `account_balance_adjustments` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `accountId` INTEGER NOT NULL,
+                        `amount` INTEGER NOT NULL,
+                        `date` INTEGER NOT NULL,
+                        `note` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_account_balance_adjustments_accountId` ON `account_balance_adjustments` (`accountId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_account_balance_adjustments_accountId_date` ON `account_balance_adjustments` (`accountId`, `date`)")
+            }
+        }
+
         fun getInstance(context: Context): FinTrackDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -282,7 +298,8 @@ abstract class FinTrackDatabase : RoomDatabase() {
                     MIGRATION_9_10,
                     MIGRATION_10_11,
                     MIGRATION_11_12,
-                    MIGRATION_12_13
+                    MIGRATION_12_13,
+                    MIGRATION_13_14
                 )
                 .build()
                 INSTANCE = instance

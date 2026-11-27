@@ -303,11 +303,12 @@ fun AccountDetailScreen(
                                 }
                                 else -> {
                                     val absDiff = kotlin.math.abs(state.reconciliationDiff)
+                                    val diffSign = if (state.reconciliationDiff > 0L) "+" else "-"
                                     val diffStr = AmountFormatter.format(absDiff)
                                     val bankBalStr = AmountFormatter.format(state.latestSnapshot?.balance ?: 0L)
                                     val appBalStr = AmountFormatter.format(state.appBalanceAtSnapshot)
                                     Text(
-                                        text = "⚠️ اختلاف $diffStr ریال با بانک (بانک: $bankBalStr / اپ: $appBalStr)",
+                                        text = "⚠️ اختلاف $diffSign$diffStr با بانک (بانک: $bankBalStr / اپ: $appBalStr)",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.error

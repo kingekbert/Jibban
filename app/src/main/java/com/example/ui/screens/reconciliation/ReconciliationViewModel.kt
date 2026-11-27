@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.data.local.entity.AccountBalanceAdjustmentEntity
 import com.example.data.local.entity.AccountBalanceSnapshotEntity
 import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.CategoryEntity
@@ -32,6 +33,7 @@ data class ReconciliationUiState(
     val isSynced: Boolean = true,
     val cause: ReconciliationCause? = null,
     val history: List<ReconciliationHistoryItem> = emptyList(),
+    val adjustments: List<AccountBalanceAdjustmentEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val userMessage: String? = null,
     val isSuccessMessage: Boolean = true
@@ -73,6 +75,7 @@ class ReconciliationViewModel(
                             isSynced = diag.isSynced,
                             cause = diag.cause,
                             history = diag.history,
+                            adjustments = diag.adjustments,
                             categories = categories
                         )
                     }
@@ -205,6 +208,92 @@ class ReconciliationViewModel(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(userMessage = "خطا در ثبت تراکنش اصلاحی: ${e.localizedMessage}", isSuccessMessage = false)
+                }
+            }
+        }
+    }
+
+    fun reconcileIsolated(
+        signedDelta: Long,
+        date: Long,
+        note: String = "تراز مانده حساب (بدون اثر بر گزارش‌ها)"
+    ) {
+        viewModelScope.launch {
+            try {
+                val ok = reconciliationRepository.reconcileBalanceIsolated(
+                    accountId = accountId,
+                    signedDelta = signedDelta,
+                    date = date,
+                    note = note
+                )
+                if (ok) {
+                    _uiState.update {
+                        it.copy(
+                            userMessage = "مانده حساب بدون ثبت هزینه یا درآمد کاذب تراز شد.",
+                            isSuccessMessage = true
+                        )
+                    }
+                    loadDiagnosis()
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(userMessage = "خطا در تراز مانده حساب: ${e.localizedMessage}", isSuccessMessage = false)
+                }
+            }
+        }
+    }
+
+    fun reconcileToTargetBalance(
+        targetBankBalance: Long,
+        date: Long,
+        note: String = "تراز مستقیم با مانده بانک"
+    ) {
+        viewModelScope.launch {
+            try {
+                val ok = reconciliationRepository.reconcileToTargetBankBalance(
+                    accountId = accountId,
+                    targetBankBalance = targetBankBalance,
+                    date = date,
+                    note = note
+                )
+                if (ok) {
+                    _uiState.update {
+                        it.copy(
+                            userMessage = "موجودی حساب بدون تغییر در آمار هزینه‌ها و درآمدها با بانک همخوان شد.",
+                            isSuccessMessage = true
+                        )
+                    }
+                    loadDiagnosis()
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            userMessage = "موجودی حساب هم‌اکنون با مبلغ واردشده برابر است.",
+                            isSuccessMessage = true
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(userMessage = "خطا در تراز موجودی: ${e.localizedMessage}", isSuccessMessage = false)
+                }
+            }
+        }
+    }
+
+    fun deleteBalanceAdjustment(adjustmentId: Long) {
+        viewModelScope.launch {
+            try {
+                reconciliationRepository.deleteBalanceAdjustment(adjustmentId)
+                _uiState.update {
+                    it.copy(
+                        userMessage = "تعدیل تراز مانده حذف و موجودی مجدداً محاسبه شد.",
+                        isSuccessMessage = true
+                    )
+                }
+                loadDiagnosis()
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(userMessage = "خطا در حذف تعدیل: ${e.localizedMessage}", isSuccessMessage = false)
                 }
             }
         }

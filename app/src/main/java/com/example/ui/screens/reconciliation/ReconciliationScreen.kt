@@ -20,15 +20,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -63,6 +66,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -90,6 +94,7 @@ fun ReconciliationScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showManualDialog by remember { mutableStateOf(false) }
+    var showIsolatedTargetDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.userMessage) {
         state.userMessage?.let {
@@ -191,10 +196,20 @@ fun ReconciliationScreen(
                     }
                 }
 
-                // Top Summary: Discrepancy, Bank Balance, App Balance
+                // Top Summary: Discrepancy, Bank Balance, App Balance (All strictly in Rials)
                 item {
                     val absDiff = abs(state.diff)
                     val diffColor = if (state.isSynced) IncomeColor else MaterialTheme.colorScheme.error
+                    val signedDiffHeadline = when {
+                        state.isSynced -> "۰ ریال (همخوان)"
+                        state.diff > 0L -> "+ ${AmountFormatter.format(absDiff)}"
+                        else -> "- ${AmountFormatter.format(absDiff)}"
+                    }
+                    val directionHint = when {
+                        state.diff > 0L -> "مانده بانک ${AmountFormatter.format(absDiff)} بیشتر از اپ است"
+                        state.diff < 0L -> "مانده اپ ${AmountFormatter.format(absDiff)} بیشتر از بانک است"
+                        else -> null
+                    }
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -214,22 +229,24 @@ fun ReconciliationScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = if (state.isSynced) "اختلاف مانده" else "مبلغ اختلاف با بانک",
+                                text = if (state.isSynced) "اختلاف مانده" else "مبلغ اختلاف با بانک (ریال)",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = if (state.isSynced) "۰ ریال (همخوان)" else "${AmountFormatter.format(absDiff)} ریال",
+                                text = signedDiffHeadline,
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = diffColor
                             )
-                            if (!state.isSynced) {
+                            if (directionHint != null) {
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "(${AmountFormatter.format(absDiff / 10)} تومان)",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = diffColor.copy(alpha = 0.85f)
+                                    text = directionHint,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = diffColor.copy(alpha = 0.9f),
+                                    textAlign = TextAlign.Center
                                 )
                             }
 
@@ -320,6 +337,20 @@ fun ReconciliationScreen(
                             }
                         }
                     }
+
+                    item {
+                        OutlinedButton(
+                            onClick = { showIsolatedTargetDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("reconcile_manual_target_button"),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("تراز دستی موجودی با مانده واقعی بانک (بدون اثر بر گزارش‌ها)")
+                        }
+                    }
                 }
 
                 // Root Cause & 1-Click Fix Section (if not synced)
@@ -364,7 +395,7 @@ fun ReconciliationScreen(
                                                 ) {
                                                     Column(modifier = Modifier.weight(1f)) {
                                                         Text(
-                                                            text = "${if (isInc) "واریز" else "برداشت"}: ${AmountFormatter.format(amt)} ریال",
+                                                            text = "${if (isInc) "واریز" else "برداشت"}: ${AmountFormatter.format(amt)}",
                                                             style = MaterialTheme.typography.bodyMedium,
                                                             fontWeight = FontWeight.Bold,
                                                             color = if (isInc) IncomeColor else ExpenseColor
@@ -425,7 +456,7 @@ fun ReconciliationScreen(
                                         Icon(imageVector = Icons.Default.Check, contentDescription = null)
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "ثبت کارمزد (${AmountFormatter.format(cause.feeAmount)} ریال)",
+                                            text = "ثبت کارمزد (${AmountFormatter.format(cause.feeAmount)})",
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
@@ -446,14 +477,14 @@ fun ReconciliationScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             Text("مانده اولیه فعلی:", style = MaterialTheme.typography.bodySmall)
-                                            Text("${AmountFormatter.format(cause.currentInitialBalance)} ریال", fontWeight = FontWeight.Bold)
+                                            Text(AmountFormatter.format(cause.currentInitialBalance), fontWeight = FontWeight.Bold)
                                         }
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             Text("مانده اولیه اصلاح‌شده:", style = MaterialTheme.typography.bodySmall)
-                                            Text("${AmountFormatter.format(cause.proposedInitialBalance)} ریال", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            Text(AmountFormatter.format(cause.proposedInitialBalance), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                         }
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Button(
@@ -470,38 +501,166 @@ fun ReconciliationScreen(
                             }
 
                             is ReconciliationCause.ManualAdjustment, null -> {
+                                val snapDate = state.latestSnapshot?.smsDate ?: System.currentTimeMillis()
+                                val signedLabel = if (state.diff > 0L) {
+                                    "+ ${AmountFormatter.format(abs(state.diff))}"
+                                } else {
+                                    "- ${AmountFormatter.format(abs(state.diff))}"
+                                }
                                 CauseCard(
-                                    icon = Icons.Default.HelpOutline,
-                                    title = "نیاز به بررسی و تراکنش اصلاحی دستی",
-                                    description = "الگوی خودکاری برای این اختلاف شناسایی نشد. می‌توانید با ثبت یک تراکنش اصلاحی، مانده اپلیکیشن را با بانک همخوان کنید.",
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    accentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    icon = Icons.Default.Tune,
+                                    title = "تراز ایزوله مانده حساب (پیشنهادی)",
+                                    description = "الگوی خودکاری برای این اختلاف یافت نشد. با تراز ایزوله، موجودی حساب بدون ثبت هزینه یا درآمد کاذب در گزارش‌ها و نمودارها با بانک همخوان می‌شود.",
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                                    accentColor = MaterialTheme.colorScheme.primary
                                 ) {
-                                    Button(
-                                        onClick = { showManualDialog = true },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Icon(imageVector = Icons.Default.Edit, contentDescription = null)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("ثبت تراکنش اصلاحی دستی", fontWeight = FontWeight.Bold)
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(
+                                            onClick = {
+                                                viewModel.reconcileIsolated(
+                                                    signedDelta = state.diff,
+                                                    date = snapDate,
+                                                    note = "تراز خودکار با مانده پیامک بانک"
+                                                )
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("reconcile_isolated_button"),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("تراز مانده با بانک ($signedLabel)", fontWeight = FontWeight.Bold)
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = { showIsolatedTargetDialog = true },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("reconcile_custom_target_button"),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Icon(imageVector = Icons.Default.AccountBalanceWallet, contentDescription = null, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("وارد کردن مانده دلخواه بانک (ایزوله)")
+                                        }
+
+                                        TextButton(
+                                            onClick = { showManualDialog = true },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("ثبت تراکنش واقعی جامانده (با اثر بر گزارش‌ها)")
+                                        }
                                     }
                                 }
                             }
                         }
                     }
 
-                    // Secondary action to manually adjust if desired
+                    // Dedicated isolated reconciliation option when another cause was suggested
                     if (state.cause !is ReconciliationCause.ManualAdjustment && state.cause != null) {
+                        val snapDate = state.latestSnapshot?.smsDate ?: System.currentTimeMillis()
                         item {
-                            OutlinedButton(
-                                onClick = { showManualDialog = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(
+                                    onClick = {
+                                        viewModel.reconcileIsolated(
+                                            signedDelta = state.diff,
+                                            date = snapDate,
+                                            note = "تراز مستقیم مانده با بانک"
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("reconcile_isolated_secondary_button"),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("تراز مستقیم مانده بدون ثبت هزینه/درآمد در گزارش‌ها")
+                                }
+
+                                TextButton(
+                                    onClick = { showManualDialog = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("ثبت تراکنش دسته‌بندی‌شده دستی (با اثر بر گزارش‌ها)")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Isolated Balance Adjustments Audit Section
+                if (state.adjustments.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(imageVector = Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "تعدیل‌های ایزوله تراز مانده (${state.adjustments.size.toString().toPersianDigits()})",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    items(state.adjustments, key = { "adj_${it.id}" }) { adj ->
+                        val dateText = runCatching {
+                            JalaliDate.fromTimestamp(adj.date).format(includeDayName = false).toPersianDigits()
+                        }.getOrDefault("–")
+                        val isPositive = adj.amount > 0L
+                        val amountText = (if (isPositive) "+ " else "- ") + AmountFormatter.format(abs(adj.amount))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("ثبت تراکنش اصلاحی دستی دلخواه")
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = amountText,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isPositive) IncomeColor else ExpenseColor
+                                    )
+                                    Text(
+                                        text = "$dateText — ${adj.note ?: "تراز مانده حساب"}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "ایزوله از گزارش هزینه‌ها و درآمدها",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { viewModel.deleteBalanceAdjustment(adj.id) }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = "حذف تعدیل تراز مانده",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
                         }
                     }
@@ -543,30 +702,42 @@ fun ReconciliationScreen(
                 } else {
                     // History Table Header
                     item {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "تمامی مبالغ جدول به ریال است",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
                             ) {
-                                Text("تاریخ شمسی", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.3f))
-                                Text("مانده بانک", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.3f))
-                                Text("مانده اپ", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.3f))
-                                Text("اختلاف", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.1f), textAlign = TextAlign.End)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("تاریخ شمسی", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.2f))
+                                    Text("مانده بانک", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.3f))
+                                    Text("مانده اپ", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.3f))
+                                    Text("اختلاف", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
+                                }
                             }
                         }
                     }
 
-                    items(state.history) { item ->
-                        val jalali = JalaliDate.fromTimestamp(item.snapshot.smsDate)
-                        val dateText = jalali.format(includeDayName = false).toPersianDigits()
-                        val diffText = if (item.diff == 0L) "همخوان" else AmountFormatter.format(abs(item.diff))
+                    items(state.history, key = { it.snapshot.id }) { item ->
+                        val dateText = runCatching {
+                            JalaliDate.fromTimestamp(item.snapshot.smsDate).format(includeDayName = false).toPersianDigits()
+                        }.getOrDefault("–")
                         val isItemSynced = item.diff == 0L
+                        val diffText = when {
+                            isItemSynced -> "همخوان"
+                            item.diff > 0L -> "+${AmountFormatter.format(abs(item.diff), includeCurrency = false)}"
+                            else -> "-${AmountFormatter.format(abs(item.diff), includeCurrency = false)}"
+                        }
 
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -580,15 +751,15 @@ fun ReconciliationScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(dateText, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1.3f))
-                                Text(AmountFormatter.format(item.snapshot.balance), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1.3f))
-                                Text(AmountFormatter.format(item.appBalance), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1.3f))
+                                Text(dateText, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1.2f))
+                                Text(AmountFormatter.format(item.snapshot.balance, includeCurrency = false), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1.3f))
+                                Text(AmountFormatter.format(item.appBalance, includeCurrency = false), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1.3f))
                                 Text(
                                     text = diffText,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isItemSynced) IncomeColor else MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.weight(1.1f),
+                                    modifier = Modifier.weight(1.2f),
                                     textAlign = TextAlign.End
                                 )
                             }
@@ -597,6 +768,99 @@ fun ReconciliationScreen(
                 }
             }
         }
+    }
+
+    // Isolated Target Bank Balance Reconciliation Dialog (No fake Expense/Income)
+    if (showIsolatedTargetDialog) {
+        var targetBankBalanceStr by remember {
+            mutableStateOf(if (state.bankBalance > 0L) state.bankBalance.toString() else "")
+        }
+        var adjustmentNote by remember { mutableStateOf("تراز مستقیم با مانده واقعی بانک") }
+        val parsedTarget = targetBankBalanceStr.toLongOrNull()
+        val previewDelta = parsedTarget?.let { it - state.appBalance }
+
+        AlertDialog(
+            onDismissRequest = { showIsolatedTargetDialog = false },
+            title = { Text("تراز ایزوله با مانده بانک", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "مانده واقعی حساب در بانک را به ریال وارد کنید. اختلاف محاسبه‌شده به‌صورت تعدیل ایزوله ثبت می‌شود و در آمار هزینه‌ها و درآمدها تأثیری ندارد.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("مانده فعلی اپ:", style = MaterialTheme.typography.bodySmall)
+                        Text(AmountFormatter.format(state.appBalance), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    }
+
+                    OutlinedTextField(
+                        value = targetBankBalanceStr,
+                        onValueChange = { targetBankBalanceStr = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("مانده واقعی بانک (ریال)") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("isolated_target_balance_input")
+                    )
+
+                    if (previewDelta != null) {
+                        val previewText = when {
+                            previewDelta == 0L -> "مانده اپ هم‌اکنون با این مبلغ همخوان است (اختلاف ۰ ریال)."
+                            previewDelta > 0L -> "تعدیل ایزوله: + ${AmountFormatter.format(abs(previewDelta))}"
+                            else -> "تعدیل ایزوله: - ${AmountFormatter.format(abs(previewDelta))}"
+                        }
+                        Text(
+                            text = previewText,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = when {
+                                previewDelta == 0L -> IncomeColor
+                                previewDelta > 0L -> IncomeColor
+                                else -> ExpenseColor
+                            }
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = adjustmentNote,
+                        onValueChange = { adjustmentNote = it },
+                        label = { Text("توضیح تعدیل (اختیاری)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val target = targetBankBalanceStr.toLongOrNull()
+                        if (target != null) {
+                            val snapDate = state.latestSnapshot?.smsDate ?: System.currentTimeMillis()
+                            viewModel.reconcileToTargetBalance(
+                                targetBankBalance = target,
+                                date = snapDate,
+                                note = adjustmentNote
+                            )
+                            showIsolatedTargetDialog = false
+                        }
+                    },
+                    enabled = parsedTarget != null && previewDelta != 0L,
+                    modifier = Modifier.testTag("confirm_isolated_reconcile_button")
+                ) {
+                    Text("تراز مانده (ایزوله)")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showIsolatedTargetDialog = false }) {
+                    Text("انصراف")
+                }
+            }
+        )
     }
 
     // Manual Adjustment Dialog

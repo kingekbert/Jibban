@@ -2,6 +2,7 @@ package com.example.data.repository
 
 import androidx.room.withTransaction
 import com.example.data.local.FinTrackDatabase
+import com.example.data.local.entity.AccountBalanceAdjustmentEntity
 import com.example.data.local.entity.AccountBalanceSnapshotEntity
 import com.example.data.local.entity.CategoryEntity
 import com.example.data.local.entity.CategoryType
@@ -24,6 +25,10 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
 
     fun getLatestSnapshotFlow(accountId: Long): Flow<AccountBalanceSnapshotEntity?> {
         return database.accountBalanceSnapshotDao().getLatestSnapshotFlow(accountId)
+    }
+
+    fun getAdjustmentsForAccount(accountId: Long): Flow<List<AccountBalanceAdjustmentEntity>> {
+        return database.accountBalanceAdjustmentDao().getByAccountId(accountId)
     }
 
     suspend fun getLatestSnapshot(accountId: Long): AccountBalanceSnapshotEntity? = withContext(Dispatchers.IO) {
@@ -61,6 +66,7 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
     ): ReconciliationDiagnosis? = withContext(Dispatchers.IO) {
         val account = database.accountDao().getAccountById(accountId) ?: return@withContext null
         val snapshotsDesc = database.accountBalanceSnapshotDao().getListByAccountId(accountId)
+        val adjustmentsDesc = database.accountBalanceAdjustmentDao().getListByAccountId(accountId)
         val latestSnapshot = snapshotsDesc.firstOrNull()
 
         if (latestSnapshot == null) {
@@ -74,7 +80,8 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
                 diff = 0L,
                 isSynced = true,
                 cause = null,
-                history = emptyList()
+                history = emptyList(),
+                adjustments = adjustmentsDesc
             )
         }
 
@@ -134,7 +141,8 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
             diff = latestDiff,
             isSynced = isSynced,
             cause = cause,
-            history = historyItems
+            history = historyItems,
+            adjustments = adjustmentsDesc
         )
     }
 
@@ -252,6 +260,72 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
             )
             database.transactionDao().insert(tx)
         }
+        true
+    }
+
+    /**
+     * Records an isolated balance adjustment (in Rials) directly in `account_balance_adjustments`.
+     * Does NOT insert any Expense or Income row into `transactions`, so categorized reports,
+     * charts, budgets, and spending statistics remain completely unaffected.
+     */
+    suspend fun reconcileBalanceIsolated(
+        accountId: Long,
+        signedDelta: Long,
+        date: Long,
+        note: String = "تراز مانده حساب (بدون اثر بر گزارش‌ها)"
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (signedDelta == 0L) return@withContext false
+        var inserted = false
+        database.withTransaction {
+            val account = database.accountDao().getAccountById(accountId) ?: return@withTransaction
+            val adjustment = AccountBalanceAdjustmentEntity(
+                accountId = account.id,
+                amount = signedDelta,
+                date = if (date > 0L) date else System.currentTimeMillis(),
+                note = note.trim().ifBlank { "تراز مانده حساب (بدون اثر بر گزارش‌ها)" }
+            )
+            database.accountBalanceAdjustmentDao().insert(adjustment)
+            inserted = true
+        }
+        inserted
+    }
+
+    /**
+     * Atomically computes the signed delta required to match [targetBankBalance] (in Rials) at [date]
+     * and stores an isolated balance adjustment without creating any categorized expense/income.
+     */
+    suspend fun reconcileToTargetBankBalance(
+        accountId: Long,
+        targetBankBalance: Long,
+        date: Long,
+        note: String = "تراز مستقیم با مانده بانک"
+    ): Boolean = withContext(Dispatchers.IO) {
+        val effectiveDate = if (date > 0L) date else System.currentTimeMillis()
+        var inserted = false
+        database.withTransaction {
+            val account = database.accountDao().getAccountById(accountId) ?: return@withTransaction
+            val currentAppBal = database.accountDao().calculateAppBalanceAtDate(account.id, effectiveDate)
+                ?: account.initialBalance
+            val delta = BalanceReconciliationEngine.calculateDiff(
+                bankBalance = targetBankBalance,
+                appBalance = currentAppBal
+            )
+            if (delta == 0L) return@withTransaction
+            database.accountBalanceAdjustmentDao().insert(
+                AccountBalanceAdjustmentEntity(
+                    accountId = account.id,
+                    amount = delta,
+                    date = effectiveDate,
+                    note = note.trim().ifBlank { "تراز مستقیم با مانده بانک" }
+                )
+            )
+            inserted = true
+        }
+        inserted
+    }
+
+    suspend fun deleteBalanceAdjustment(adjustmentId: Long): Boolean = withContext(Dispatchers.IO) {
+        database.accountBalanceAdjustmentDao().deleteById(adjustmentId)
         true
     }
 }

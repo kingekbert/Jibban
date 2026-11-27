@@ -90,6 +90,7 @@ class ScanSmsViewModel(
                     val scannedResult = mutableListOf<ScannedSmsItem>()
                     val consumedManualTxIds = mutableSetOf<Long>()
                     val seenHashes = mutableSetOf<String>()
+                    val balanceAtDateCache = mutableMapOf<Pair<Long, Long>, Long?>()
 
                     val uri = Uri.parse("content://sms/inbox")
                     val projection = arrayOf("_id", "address", "body", "date")
@@ -193,7 +194,15 @@ class ScanSmsViewModel(
 
                                     if (matchedAcc != null) {
                                         itemMatchedAccId = matchedAcc.id
-                                        val appBal = reconciliationRepository?.calculateAppBalanceAtDate(matchedAcc.id, smsDate)
+                                        val appBal = if (reconciliationRepository != null) {
+                                            val cacheKey = matchedAcc.id to smsDate
+                                            if (balanceAtDateCache.containsKey(cacheKey)) {
+                                                balanceAtDateCache[cacheKey]
+                                            } else {
+                                                reconciliationRepository.calculateAppBalanceAtDate(matchedAcc.id, smsDate)
+                                                    .also { balanceAtDateCache[cacheKey] = it }
+                                            }
+                                        } else null
                                         if (appBal != null) {
                                             itemBalDiff = effectiveParsed.balance - appBal
                                         }
@@ -285,69 +294,68 @@ class ScanSmsViewModel(
     }
 
     fun refreshRegisteredStatus() {
-        if (_uiState.value.scannedList.isEmpty()) return
+        val currentScanned = _uiState.value.scannedList
+        if (currentScanned.isEmpty()) return
         viewModelScope.launch {
             try {
-                val existingTransactions = withContext(Dispatchers.IO) {
-                    transactionRepository.getAllTransactionsWithDetailsList()
-                }
-                val allAccounts = withContext(Dispatchers.IO) {
-                    accountRepository.getAllAccountsList()
-                }
-                val accountMap = allAccounts.associateBy { it.id }
-                val consumedManualTxIds = mutableSetOf<Long>()
+                val (sortedItems, sortedTransfers) = withContext(Dispatchers.IO) {
+                    val existingTransactions = transactionRepository.getAllTransactionsWithDetailsList()
+                    val allAccounts = accountRepository.getAllAccountsList()
+                    val accountMap = allAccounts.associateBy { it.id }
+                    val consumedManualTxIds = mutableSetOf<Long>()
 
-                val updatedList = _uiState.value.scannedList.map { item ->
-                    if (item.isRegistered) item
-                    else {
-                        val amt = item.parsedSms.amount ?: 0L
-                        val smsDate = item.parsedSms.date ?: item.date
-                        val txType = item.parsedSms.transactionType ?: com.example.data.local.entity.TransactionType.EXPENSE
-                        val accountIdent = item.parsedSms.accountIdentifier?.trim() ?: ""
-                        val bankName = item.parsedSms.bankName?.trim() ?: ""
-                        val legacyHashes = setOf(
-                            com.example.util.SmsHashUtil.calculateLegacyV1Hash(item.sender, amt, smsDate, item.rawText),
-                            com.example.util.SmsHashUtil.calculateLegacySimpleHash(amt, smsDate, accountIdent)
-                        )
+                    val updatedList = currentScanned.map { item ->
+                        if (item.isRegistered) item
+                        else {
+                            val amt = item.parsedSms.amount ?: 0L
+                            val smsDate = item.parsedSms.date ?: item.date
+                            val txType = item.parsedSms.transactionType ?: com.example.data.local.entity.TransactionType.EXPENSE
+                            val accountIdent = item.parsedSms.accountIdentifier?.trim() ?: ""
+                            val bankName = item.parsedSms.bankName?.trim() ?: ""
+                            val legacyHashes = setOf(
+                                com.example.util.SmsHashUtil.calculateLegacyV1Hash(item.sender, amt, smsDate, item.rawText),
+                                com.example.util.SmsHashUtil.calculateLegacySimpleHash(amt, smsDate, accountIdent)
+                            )
 
-                        val isRegistered = com.example.util.SmsDeduplicator.isSmsRegistered(
-                            candidate = com.example.util.SmsDeduplicator.SmsCandidate(
-                                transactionType = txType,
-                                amount = amt,
-                                date = smsDate,
-                                primaryHash = item.smsHash,
-                                legacyHashes = legacyHashes,
-                                matchedAccountId = item.matchedAccountId,
-                                accountIdent = accountIdent,
-                                bankName = bankName
-                            ),
-                            existingTransactions = existingTransactions,
-                            accountsById = accountMap,
-                            consumedManualTxIds = consumedManualTxIds
-                        )
-                        if (isRegistered) item.copy(isRegistered = true) else item
+                            val isRegistered = com.example.util.SmsDeduplicator.isSmsRegistered(
+                                candidate = com.example.util.SmsDeduplicator.SmsCandidate(
+                                    transactionType = txType,
+                                    amount = amt,
+                                    date = smsDate,
+                                    primaryHash = item.smsHash,
+                                    legacyHashes = legacyHashes,
+                                    matchedAccountId = item.matchedAccountId,
+                                    accountIdent = accountIdent,
+                                    bankName = bankName
+                                ),
+                                existingTransactions = existingTransactions,
+                                accountsById = accountMap,
+                                consumedManualTxIds = consumedManualTxIds
+                            )
+                            if (isRegistered) item.copy(isRegistered = true) else item
+                        }
                     }
-                }
 
-                val transfers = withContext(Dispatchers.IO) {
-                    com.example.util.TransferDetector.findTransfers(updatedList, allAccounts, existingTransactions)
-                }
-                val registeredTransferHashes = transfers.filter { it.isRegistered }
-                    .flatMap { listOf(it.withdrawalItem.smsHash, it.depositItem.smsHash) }
-                    .toSet()
+                    val transfers = com.example.util.TransferDetector.findTransfers(updatedList, allAccounts, existingTransactions)
+                    val registeredTransferHashes = transfers.filter { it.isRegistered }
+                        .flatMap { listOf(it.withdrawalItem.smsHash, it.depositItem.smsHash) }
+                        .toSet()
 
-                val finalList = if (registeredTransferHashes.isNotEmpty()) {
-                    updatedList.map { item ->
-                        if (registeredTransferHashes.contains(item.smsHash)) item.copy(isRegistered = true) else item
+                    val finalList = if (registeredTransferHashes.isNotEmpty()) {
+                        updatedList.map { item ->
+                            if (registeredTransferHashes.contains(item.smsHash)) item.copy(isRegistered = true) else item
+                        }
+                    } else {
+                        updatedList
                     }
-                } else {
-                    updatedList
+
+                    Pair(sortScannedItems(finalList), sortDetectedTransfers(transfers))
                 }
 
                 _uiState.update { state ->
                     state.copy(
-                        scannedList = sortScannedItems(finalList),
-                        detectedTransfers = sortDetectedTransfers(transfers)
+                        scannedList = sortedItems,
+                        detectedTransfers = sortedTransfers
                     )
                 }
             } catch (e: Exception) {
@@ -356,26 +364,16 @@ class ScanSmsViewModel(
         }
     }
 
-    private fun isPotentialBankSms(text: String): Boolean {
-        val keywords = listOf(
-            "واریز", "برداشت", "خرید", "انتقال", "مانده", "موجودی",
-            "کارت", "حساب", "شاپرک", "شتاب", "پایا", "ساتنا",
-            "بانک", "ملت", "ملی", "صادرات", "تجارت", "سپه", "رسالت",
-            "کشاورزی", "مسکن", "سامان", "پاسارگاد", "پارسیان", "آینده", "شهر", "دی"
-        )
-        val matchCount = keywords.count { text.contains(it) }
-        return matchCount >= 2
-    }
-
     private fun isOtpSms(text: String): Boolean {
-        val otpKeywords = listOf(
-            "رمز پویا", "رمز یکبار", "کد تایید", "کد فعالسازی", "رمز اینترنتی",
-            "رمز دوم", "کد ورود", "کد احراز", "کد صحت", "کد ثبت نام", "کد تائید"
-        )
-        return otpKeywords.any { text.contains(it, ignoreCase = true) }
+        return OTP_KEYWORDS.any { text.contains(it, ignoreCase = true) }
     }
 
     companion object {
+        private val OTP_KEYWORDS = listOf(
+            "رمز پویا", "رمز یکبار", "کد تایید", "کد فعالسازی", "کد فعال‌سازی", "رمز اینترنتی",
+            "رمز دوم", "کد ورود", "کد احراز", "کد صحت", "کد ثبت نام", "کد تائید"
+        )
+
         fun sortScannedItems(items: List<ScannedSmsItem>): List<ScannedSmsItem> {
             return items.sortedWith(
                 compareBy<ScannedSmsItem> { it.isRegistered }

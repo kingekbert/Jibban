@@ -1,7 +1,15 @@
+import java.io.File
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
+}
+
+class RoomSchemaArgProvider(
+  @get:Internal val schemaDir: File,
+) : CommandLineArgumentProvider {
+  override fun asArguments(): Iterable<String> = listOf("room.schemaLocation=${schemaDir.path}")
 }
 
 android {
@@ -61,6 +69,17 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
+  lint {
+    abortOnError = true
+    checkReleaseBuilds = false
+    htmlReport = true
+    xmlReport = true
+  }
+  sourceSets { getByName("test").assets.srcDir("$projectDir/schemas") }
+}
+
+ksp {
+  arg(RoomSchemaArgProvider(File(projectDir, "schemas")))
 }
 
 dependencies {
@@ -81,9 +100,9 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.fragment.ktx)
-  implementation("androidx.biometric:biometric:1.1.0")
-  implementation("com.google.code.gson:gson:2.11.0")
-  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+  implementation(libs.androidx.biometric)
+  implementation(libs.gson)
+  coreLibraryDesugaring(libs.desugar.jdk.libs)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   testImplementation(libs.androidx.compose.ui.test.junit4)

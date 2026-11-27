@@ -264,7 +264,7 @@ class GroupExpensesViewModel(
     }
 
     fun setPartialAmountInput(input: String) {
-        val clean = input.filter { it.isDigit() }
+        val clean = AmountFormatter.sanitizeAmountDigits(input)
         _dialogState.update { it.copy(partialAmountInput = clean) }
     }
 
@@ -327,7 +327,7 @@ class GroupExpensesViewModel(
                         }
                     }
                     SettleMode.PARTIAL -> {
-                        val amount = _dialogState.value.partialAmountInput.toLongOrNull() ?: 0L
+                        val amount = AmountFormatter.parseAmount(_dialogState.value.partialAmountInput)
                         if (amount <= 0) {
                             _userMessage.value = "لطفاً مبلغ معتبری برای تسویه جزئی وارد کنید"
                             return@launch

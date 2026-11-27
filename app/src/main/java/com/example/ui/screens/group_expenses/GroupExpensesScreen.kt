@@ -75,11 +75,16 @@ import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.CategoryEntity
 import com.example.data.local.entity.GroupExpenseShareEntity
 import com.example.data.local.relation.GroupExpenseWithShares
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardType
 import com.example.ui.components.EmptyState
+import com.example.ui.components.PersianAmountVisualTransformation
 import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
 import com.example.util.AmountFormatter
 import com.example.util.DateFormatter
+import com.example.util.NumberToWords
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -563,7 +568,7 @@ fun ThreeModeSettleDialog(
     }
     val selectedCategory = categories.find { it.id == selectedCategoryId }
 
-    val partialAmountLong = partialAmountInput.filter { it.isDigit() }.toLongOrNull() ?: 0L
+    val partialAmountLong = AmountFormatter.parseAmount(partialAmountInput)
     val isAmountOverDebt = partialAmountLong > target.totalDebt
     val debtDifference = if (isAmountOverDebt) partialAmountLong - target.totalDebt else 0L
 
@@ -734,10 +739,23 @@ fun ThreeModeSettleDialog(
                         OutlinedTextField(
                             value = partialAmountInput,
                             onValueChange = onSetPartialAmount,
-                            label = { Text("مبلغ تسویه جزئی (تومان)") },
+                            label = { Text("مبلغ تسویه جزئی (${AmountFormatter.BASE_CURRENCY_LABEL})") },
+                            suffix = { Text(AmountFormatter.BASE_CURRENCY_LABEL) },
+                            supportingText = if (partialAmountLong > 0L && !isAmountOverDebt) {
+                                {
+                                    Text(
+                                        text = NumberToWords.convert(partialAmountLong, suffix = AmountFormatter.BASE_CURRENCY_LABEL),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            } else null,
+                            visualTransformation = remember { PersianAmountVisualTransformation() },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
                             isError = isAmountOverDebt,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("partial_settlement_amount_input"),
                             shape = RoundedCornerShape(10.dp)
                         )
 

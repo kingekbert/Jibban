@@ -1,5 +1,6 @@
 package com.example.util
 
+import com.example.data.local.entity.AccountBalanceAdjustmentEntity
 import com.example.data.local.entity.AccountBalanceSnapshotEntity
 import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.TransactionEntity
@@ -53,7 +54,8 @@ data class ReconciliationDiagnosis(
     val diff: Long,
     val isSynced: Boolean,
     val cause: ReconciliationCause?,
-    val history: List<ReconciliationHistoryItem>
+    val history: List<ReconciliationHistoryItem>,
+    val adjustments: List<AccountBalanceAdjustmentEntity> = emptyList()
 )
 
 object BalanceReconciliationEngine {
@@ -62,13 +64,14 @@ object BalanceReconciliationEngine {
     const val DEFAULT_BANK_FEE_PERCENT = 0.02 // 2% of bank balance
 
     /**
-     * Calculates the calculated app balance at a specific point in time (smsDate).
-     * appBalance = initialBalance ± sum of transactions for this account up to timestamp.
+     * Calculates the app balance at a specific point in time (smsDate).
+     * appBalance = initialBalance ± transactions + isolated balance adjustments up to timestamp.
      */
     fun calculateAppBalance(
         initialBalance: Long,
         accountId: Long,
-        transactionsUpToDate: List<TransactionEntity>
+        transactionsUpToDate: List<TransactionEntity>,
+        adjustmentsUpToDate: List<AccountBalanceAdjustmentEntity> = emptyList()
     ): Long {
         var balance = initialBalance
         for (tx in transactionsUpToDate) {
@@ -80,6 +83,11 @@ object BalanceReconciliationEngine {
                 }
             } else if (tx.toAccountId == accountId && tx.type == TransactionType.TRANSFER) {
                 balance += tx.amount
+            }
+        }
+        for (adj in adjustmentsUpToDate) {
+            if (adj.accountId == accountId) {
+                balance += adj.amount
             }
         }
         return balance

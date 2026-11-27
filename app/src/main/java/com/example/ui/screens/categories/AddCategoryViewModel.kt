@@ -82,7 +82,7 @@ class AddCategoryViewModel(
     }
 
     fun setMonthlyBudget(budget: Long) {
-        _uiState.value = _uiState.value.copy(monthlyBudget = budget)
+        _uiState.value = _uiState.value.copy(monthlyBudget = budget.coerceAtLeast(0L))
     }
 
     fun saveCategory() {
@@ -102,7 +102,7 @@ class AddCategoryViewModel(
                 color = state.color,
                 icon = state.icon,
                 isDefault = state.isDefault,
-                monthlyBudget = if (state.type != CategoryType.INCOME) state.monthlyBudget else 0L,
+                monthlyBudget = if (state.type != CategoryType.INCOME) state.monthlyBudget.coerceAtLeast(0L) else 0L,
                 createdAt = System.currentTimeMillis()
             )
 

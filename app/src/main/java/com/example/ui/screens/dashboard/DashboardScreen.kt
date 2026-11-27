@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -99,6 +100,9 @@ fun DashboardScreen(
     modifier: Modifier = Modifier
 ) {
     val summary by viewModel.uiState.collectAsStateWithLifecycle()
+    val recentTransactions = remember(summary.recentTransactions) {
+        summary.recentTransactions.take(5)
+    }
     var showMoreBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
@@ -428,8 +432,8 @@ fun DashboardScreen(
             }
         }
 
-        if (summary.recentTransactions.isEmpty()) {
-            item {
+        if (recentTransactions.isEmpty()) {
+            item(key = "empty_recent_transactions") {
                 EmptyState(
                     title = "هنوز تراکنشی ثبت نشده است",
                     buttonText = "ثبت اولین تراکنش",
@@ -437,7 +441,7 @@ fun DashboardScreen(
                 )
             }
         } else {
-            items(summary.recentTransactions.take(5), key = { it.transaction.id }) { tx ->
+            items(recentTransactions, key = { it.transaction.id }) { tx ->
                 TransactionCard(transactionWithDetails = tx)
             }
         }
@@ -455,6 +459,7 @@ fun QuickAccessItem(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(vertical = 4.dp, horizontal = 2.dp)

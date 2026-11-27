@@ -19,7 +19,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -36,6 +36,7 @@ data class AddTransactionUiState(
     val amount: Long = 0L,
     val selectedAccount: AccountEntity? = null,
     val selectedToAccount: AccountEntity? = null,
+    val isLastUsedAccountDefault: Boolean = false,
     val selectedCategory: CategoryEntity? = null,
     val dateTimestamp: Long = System.currentTimeMillis(),
     val selectedHour: Int = java.time.LocalTime.now().hour,
@@ -73,67 +74,109 @@ class AddTransactionViewModel(
     )
     val uiState: StateFlow<AddTransactionUiState> = _uiState.asStateFlow()
     private val isSavingGuard = AtomicBoolean(false)
+    private var allCategoriesCache: List<CategoryEntity> = emptyList()
+    private var hasUserSelectedAccount = false
 
     init {
-        loadData()
+        observeFormData()
     }
 
-    private fun loadData() {
+    private fun observeFormData() {
         viewModelScope.launch {
-            val accounts = accountRepository.allAccounts.firstOrNull() ?: emptyList()
-            val categories = categoryRepository.allCategories.firstOrNull() ?: emptyList()
-            val recentNames = groupExpenseRepository.recentPersonNames.firstOrNull() ?: emptyList()
+            combine(
+                accountRepository.allAccounts,
+                categoryRepository.allCategories,
+                groupExpenseRepository.recentPersonNames
+            ) { accounts, categories, recentNames ->
+                Triple(accounts, categories, recentNames)
+            }.collect { (accounts, categories, recentNames) ->
+                allCategoriesCache = categories
+                val lastAccId = settingsRepository.lastAccountId
+                val lastToAccId = settingsRepository.lastToAccountId
+                val lastCatId = settingsRepository.lastCategoryId
+                val lastExpenseCatId = settingsRepository.lastExpenseCategoryId
+                val lastIncomeCatId = settingsRepository.lastIncomeCategoryId
 
-            val lastAccId = settingsRepository.lastAccountId
-            val lastCatId = settingsRepository.lastCategoryId
+                _uiState.update { current ->
+                    val existingSelectedAcc = current.selectedAccount?.let { prev ->
+                        accounts.find { it.id == prev.id }
+                    }
+                    val (resolvedAccount, isLastDefault) = if (hasUserSelectedAccount && existingSelectedAcc != null) {
+                        existingSelectedAcc to (existingSelectedAcc.id == lastAccId && lastAccId > 0L)
+                    } else {
+                        resolveDefaultAccount(accounts, lastAccId)
+                    }
 
-            val defaultAccount = accounts.find { it.id == lastAccId } ?: accounts.firstOrNull()
-            val defaultToAccount = accounts.find { it.id != defaultAccount?.id } ?: accounts.getOrNull(1)
+                    val existingToAcc = current.selectedToAccount?.let { prev ->
+                        accounts.find { it.id == prev.id && it.id != resolvedAccount?.id }
+                    }
+                    val resolvedToAccount = existingToAcc ?: resolveDefaultDestinationAccount(
+                        accounts = accounts,
+                        sourceAccount = resolvedAccount,
+                        lastUsedToAccountId = lastToAccId
+                    )
 
-            val currentType = _uiState.value.type
-            val filteredCategories = filterCategories(categories, currentType)
-            val preferredCatId = when (currentType) {
-                TransactionType.EXPENSE -> if (settingsRepository.lastExpenseCategoryId != 0L) settingsRepository.lastExpenseCategoryId else lastCatId
-                TransactionType.INCOME -> if (settingsRepository.lastIncomeCategoryId != 0L) settingsRepository.lastIncomeCategoryId else lastCatId
-                else -> lastCatId
-            }
-            val defaultCategory = filteredCategories.find { it.id == preferredCatId } ?: filteredCategories.firstOrNull()
+                    val filteredCategories = filterCategoriesByType(categories, current.type)
+                    val resolvedCategory = resolveDefaultCategory(
+                        categories = filteredCategories,
+                        type = current.type,
+                        lastExpenseCategoryId = lastExpenseCatId,
+                        lastIncomeCategoryId = lastIncomeCatId,
+                        lastCategoryId = lastCatId,
+                        currentSelectedId = current.selectedCategory?.id
+                    )
 
-            _uiState.update {
-                it.copy(
-                    accounts = accounts,
-                    categories = filteredCategories,
-                    selectedAccount = defaultAccount,
-                    selectedToAccount = defaultToAccount,
-                    selectedCategory = defaultCategory,
-                    recentPersonNames = recentNames
-                )
+                    current.copy(
+                        accounts = accounts,
+                        categories = filteredCategories,
+                        selectedAccount = resolvedAccount,
+                        selectedToAccount = resolvedToAccount,
+                        isLastUsedAccountDefault = isLastDefault,
+                        selectedCategory = resolvedCategory,
+                        recentPersonNames = recentNames
+                    )
+                }
             }
         }
     }
 
     fun setTransactionType(type: TransactionType) {
-        viewModelScope.launch {
-            val allCats = categoryRepository.allCategories.firstOrNull() ?: emptyList()
-            val filtered = filterCategories(allCats, type)
-            val preferredCatId = when (type) {
-                TransactionType.EXPENSE -> settingsRepository.lastExpenseCategoryId
-                TransactionType.INCOME -> settingsRepository.lastIncomeCategoryId
-                else -> 0L
-            }
-            val selectedCat = filtered.find { it.id == preferredCatId }
-                ?: filtered.find { it.id == _uiState.value.selectedCategory?.id }
-                ?: filtered.firstOrNull()
+        val filtered = filterCategoriesByType(allCategoriesCache, type)
+        val lastCatId = settingsRepository.lastCategoryId
+        val lastExpenseCatId = settingsRepository.lastExpenseCategoryId
+        val lastIncomeCatId = settingsRepository.lastIncomeCategoryId
 
-            _uiState.update {
-                it.copy(
-                    type = type,
-                    categories = filtered,
-                    selectedCategory = selectedCat,
-                    // Disable group expense if switching away from EXPENSE
-                    isGroupExpenseEnabled = if (type == TransactionType.EXPENSE) it.isGroupExpenseEnabled else false
+        _uiState.update { current ->
+            val selectedCat = resolveDefaultCategory(
+                categories = filtered,
+                type = type,
+                lastExpenseCategoryId = lastExpenseCatId,
+                lastIncomeCategoryId = lastIncomeCatId,
+                lastCategoryId = lastCatId,
+                currentSelectedId = null
+            ) ?: filtered.find { it.id == current.selectedCategory?.id }
+
+            val resolvedToAccount = if (type == TransactionType.TRANSFER &&
+                (current.selectedToAccount == null || current.selectedToAccount.id == current.selectedAccount?.id)
+            ) {
+                resolveDefaultDestinationAccount(
+                    accounts = current.accounts,
+                    sourceAccount = current.selectedAccount,
+                    lastUsedToAccountId = settingsRepository.lastToAccountId
                 )
+            } else {
+                current.selectedToAccount
             }
+
+            current.copy(
+                type = type,
+                categories = filtered,
+                selectedCategory = selectedCat,
+                selectedToAccount = resolvedToAccount,
+                // Disable group expense if switching away from EXPENSE
+                isGroupExpenseEnabled = if (type == TransactionType.EXPENSE) current.isGroupExpenseEnabled else false,
+                errorMessage = null
+            )
         }
     }
 
@@ -152,15 +195,52 @@ class AddTransactionViewModel(
     }
 
     fun setSelectedAccount(account: AccountEntity) {
-        _uiState.update { it.copy(selectedAccount = account) }
+        hasUserSelectedAccount = true
+        val lastAccId = settingsRepository.lastAccountId
+        _uiState.update { current ->
+            val adjustedToAccount = if (current.selectedToAccount?.id == account.id) {
+                resolveDefaultDestinationAccount(
+                    accounts = current.accounts,
+                    sourceAccount = account,
+                    lastUsedToAccountId = settingsRepository.lastToAccountId
+                )
+            } else {
+                current.selectedToAccount
+            }
+            current.copy(
+                selectedAccount = account,
+                selectedToAccount = adjustedToAccount,
+                isLastUsedAccountDefault = (account.id == lastAccId && lastAccId > 0L),
+                errorMessage = null
+            )
+        }
     }
 
     fun setSelectedToAccount(account: AccountEntity) {
-        _uiState.update { it.copy(selectedToAccount = account) }
+        _uiState.update { it.copy(selectedToAccount = account, errorMessage = null) }
+    }
+
+    fun swapTransferAccounts() {
+        hasUserSelectedAccount = true
+        val lastAccId = settingsRepository.lastAccountId
+        _uiState.update { current ->
+            val from = current.selectedAccount
+            val to = current.selectedToAccount
+            if (from == null || to == null) {
+                current
+            } else {
+                current.copy(
+                    selectedAccount = to,
+                    selectedToAccount = from,
+                    isLastUsedAccountDefault = (to.id == lastAccId && lastAccId > 0L),
+                    errorMessage = null
+                )
+            }
+        }
     }
 
     fun setSelectedCategory(category: CategoryEntity) {
-        _uiState.update { it.copy(selectedCategory = category) }
+        _uiState.update { it.copy(selectedCategory = category, errorMessage = null) }
     }
 
     fun setDateTimestamp(timestamp: Long) {
@@ -358,6 +438,9 @@ class AddTransactionViewModel(
 
                 saveResult.onSuccess {
                     settingsRepository.lastAccountId = state.selectedAccount.id
+                    if (state.type == TransactionType.TRANSFER && state.selectedToAccount != null) {
+                        settingsRepository.lastToAccountId = state.selectedToAccount.id
+                    }
                     state.selectedCategory?.let { cat ->
                         settingsRepository.lastCategoryId = cat.id
                         if (state.type == TransactionType.EXPENSE) {
@@ -392,14 +475,6 @@ class AddTransactionViewModel(
         }
     }
 
-    private fun filterCategories(categories: List<CategoryEntity>, type: TransactionType): List<CategoryEntity> {
-        return when (type) {
-            TransactionType.EXPENSE -> categories.filter { it.type == CategoryType.EXPENSE || it.type == CategoryType.BOTH }
-            TransactionType.INCOME -> categories.filter { it.type == CategoryType.INCOME || it.type == CategoryType.BOTH }
-            TransactionType.TRANSFER -> emptyList()
-        }
-    }
-
     class Factory(
         private val initialTypeString: String,
         private val accountRepository: AccountRepository,
@@ -418,6 +493,88 @@ class AddTransactionViewModel(
                 addTransactionUseCase,
                 groupExpenseRepository
             ) as T
+        }
+    }
+
+    companion object {
+        /**
+         * Resolves the smart default account for manual transaction entry:
+         * prefers the user's last-used account if it still exists in [accounts],
+         * otherwise gracefully falls back to the first available account.
+         */
+        fun resolveDefaultAccount(
+            accounts: List<AccountEntity>,
+            lastUsedAccountId: Long
+        ): Pair<AccountEntity?, Boolean> {
+            if (accounts.isEmpty()) return null to false
+            if (lastUsedAccountId > 0L) {
+                val matched = accounts.find { it.id == lastUsedAccountId }
+                if (matched != null) {
+                    return matched to true
+                }
+            }
+            return accounts.first() to false
+        }
+
+        /**
+         * Resolves the destination account for transfers, preferring [lastUsedToAccountId]
+         * when valid and distinct from [sourceAccount], otherwise the first other account.
+         */
+        fun resolveDefaultDestinationAccount(
+            accounts: List<AccountEntity>,
+            sourceAccount: AccountEntity?,
+            lastUsedToAccountId: Long = 0L
+        ): AccountEntity? {
+            val candidates = accounts.filter { it.id != sourceAccount?.id }
+            if (candidates.isEmpty()) return null
+            if (lastUsedToAccountId > 0L) {
+                candidates.find { it.id == lastUsedToAccountId }?.let { return it }
+            }
+            return candidates.first()
+        }
+
+        /**
+         * Orders accounts for the horizontal quick-select strip so the active/default account
+         * is immediately visible at the start without horizontal scrolling.
+         */
+        fun orderAccountsForQuickSelect(
+            accounts: List<AccountEntity>,
+            selectedAccountId: Long?
+        ): List<AccountEntity> {
+            if (selectedAccountId == null || accounts.size <= 1) return accounts
+            val selected = accounts.find { it.id == selectedAccountId } ?: return accounts
+            return listOf(selected) + accounts.filterNot { it.id == selectedAccountId }
+        }
+
+        fun filterCategoriesByType(
+            categories: List<CategoryEntity>,
+            type: TransactionType
+        ): List<CategoryEntity> {
+            return when (type) {
+                TransactionType.EXPENSE -> categories.filter { it.type == CategoryType.EXPENSE || it.type == CategoryType.BOTH }
+                TransactionType.INCOME -> categories.filter { it.type == CategoryType.INCOME || it.type == CategoryType.BOTH }
+                TransactionType.TRANSFER -> emptyList()
+            }
+        }
+
+        fun resolveDefaultCategory(
+            categories: List<CategoryEntity>,
+            type: TransactionType,
+            lastExpenseCategoryId: Long,
+            lastIncomeCategoryId: Long,
+            lastCategoryId: Long,
+            currentSelectedId: Long? = null
+        ): CategoryEntity? {
+            if (type == TransactionType.TRANSFER || categories.isEmpty()) return null
+            if (currentSelectedId != null) {
+                categories.find { it.id == currentSelectedId }?.let { return it }
+            }
+            val preferredCatId = when (type) {
+                TransactionType.EXPENSE -> if (lastExpenseCategoryId > 0L) lastExpenseCategoryId else lastCategoryId
+                TransactionType.INCOME -> if (lastIncomeCategoryId > 0L) lastIncomeCategoryId else lastCategoryId
+                TransactionType.TRANSFER -> 0L
+            }
+            return categories.find { it.id == preferredCatId } ?: categories.firstOrNull()
         }
     }
 }

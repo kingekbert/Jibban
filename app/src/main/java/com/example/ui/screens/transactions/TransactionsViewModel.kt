@@ -12,10 +12,12 @@ import com.example.data.repository.AccountRepository
 import com.example.data.repository.CategoryRepository
 import com.example.data.repository.TransactionRepository
 import com.example.util.JalaliDate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.ZoneId
@@ -52,6 +54,7 @@ data class TransactionsUiState(
     val categories: List<CategoryEntity> = emptyList(),
     val rawFilteredTransactions: List<TransactionWithDetails> = emptyList(),
     val groupedTransactions: Map<String, List<TransactionWithDetails>> = emptyMap(),
+    val totalTransactionsCount: Int = 0,
     val totalIncome: Long = 0L,
     val totalExpense: Long = 0L,
     val onlyBookmarked: Boolean = false,
@@ -68,6 +71,9 @@ data class TransactionsUiState(
             if (onlyBookmarked) count++
             return count
         }
+
+    val hasActiveSearchOrFilters: Boolean
+        get() = activeFilterCount > 0 || searchQuery.isNotBlank()
 }
 
 class TransactionsViewModel(
@@ -135,67 +141,69 @@ class TransactionsViewModel(
         val zoneId = ZoneId.systemDefault()
         val todayJalali = JalaliDate.today(zoneId)
 
-        val filtered = transactions.filter { tx ->
-            val date = tx.transaction.date
-
-            // Date filter
-            val matchesPeriod = when (period) {
-                DateFilterPeriod.TODAY -> {
-                    date >= todayJalali.toStartOfDayTimestamp(zoneId) && date <= todayJalali.toEndOfDayTimestamp(zoneId)
-                }
-                DateFilterPeriod.WEEK -> {
-                    val startOfWeek = todayJalali.toStartOfDayTimestamp(zoneId) - (6 * 24 * 60 * 60 * 1000L)
-                    date >= startOfWeek
-                }
-                DateFilterPeriod.MONTH -> {
-                    val startOfMonth = JalaliDate.getStartOfCurrentMonth(zoneId)
-                    val endOfMonth = JalaliDate.getEndOfCurrentMonth(zoneId)
-                    date >= startOfMonth && date <= endOfMonth
-                }
-                DateFilterPeriod.CUSTOM -> {
-                    val s = customStart ?: 0L
-                    val e = customEnd ?: Long.MAX_VALUE
-                    date in s..e
-                }
-                DateFilterPeriod.ALL -> true
+        // Precompute loop-invariant date bounds and normalized search query once
+        val periodStart: Long
+        val periodEnd: Long
+        when (period) {
+            DateFilterPeriod.TODAY -> {
+                periodStart = todayJalali.toStartOfDayTimestamp(zoneId)
+                periodEnd = todayJalali.toEndOfDayTimestamp(zoneId)
             }
+            DateFilterPeriod.WEEK -> {
+                periodStart = todayJalali.toStartOfDayTimestamp(zoneId) - (6 * 24 * 60 * 60 * 1000L)
+                periodEnd = Long.MAX_VALUE
+            }
+            DateFilterPeriod.MONTH -> {
+                periodStart = JalaliDate.getStartOfCurrentMonth(zoneId)
+                periodEnd = JalaliDate.getEndOfCurrentMonth(zoneId)
+            }
+            DateFilterPeriod.CUSTOM -> {
+                periodStart = customStart ?: 0L
+                periodEnd = customEnd ?: Long.MAX_VALUE
+            }
+            DateFilterPeriod.ALL -> {
+                periodStart = Long.MIN_VALUE
+                periodEnd = Long.MAX_VALUE
+            }
+        }
 
-            // Type filter
-            val matchesType = type == null || tx.transaction.type == type
+        val selectedDayRange = selectedDay?.let { ts ->
+            val dayJalali = JalaliDate.fromTimestamp(ts, zoneId)
+            dayJalali.toStartOfDayTimestamp(zoneId)..dayJalali.toEndOfDayTimestamp(zoneId)
+        }
 
-            // Account filter
-            val matchesAccount = accountId == null || tx.transaction.accountId == accountId || tx.transaction.toAccountId == accountId
-
-            // Category filter (multi-select)
-            val matchesCategory = categoryIds.isEmpty() || (tx.transaction.categoryId != null && categoryIds.contains(tx.transaction.categoryId))
-
-            // Search query filter (support note, category, account, and exact or partial amount in Rial/Toman)
-            val cleanQuery = query.trim()
-            val numericQuery = cleanQuery.replace(",", "")
+        val cleanQuery = query.trim()
+        val numericQuery = if (cleanQuery.isNotEmpty()) {
+            cleanQuery.replace(",", "")
                 .replace("،", "")
                 .replace("۰", "0").replace("۱", "1").replace("۲", "2").replace("۳", "3").replace("۴", "4")
                 .replace("۵", "5").replace("۶", "6").replace("۷", "7").replace("۸", "8").replace("۹", "9")
+        } else ""
+        val isNumericSearch = numericQuery.isNotEmpty() && numericQuery.all { it.isDigit() }
 
-            val matchesAmount = numericQuery.isNotEmpty() && numericQuery.all { it.isDigit() } && (
-                tx.transaction.amount.toString().contains(numericQuery) ||
-                (tx.transaction.amount / 10).toString().contains(numericQuery)
-            )
+        val filtered = transactions.filter { tx ->
+            val date = tx.transaction.date
 
-            val matchesQuery = cleanQuery.isBlank() ||
-                (tx.transaction.note?.contains(cleanQuery, ignoreCase = true) == true) ||
-                (tx.categoryName?.contains(cleanQuery, ignoreCase = true) == true) ||
-                (tx.accountName?.contains(cleanQuery, ignoreCase = true) == true) ||
-                (tx.toAccountName?.contains(cleanQuery, ignoreCase = true) == true) ||
-                matchesAmount
-
-            val matchesDay = if (selectedDay != null) {
-                val dayJalali = JalaliDate.fromTimestamp(selectedDay, zoneId)
-                val dayStart = dayJalali.toStartOfDayTimestamp(zoneId)
-                val dayEnd = dayJalali.toEndOfDayTimestamp(zoneId)
-                date in dayStart..dayEnd
-            } else true
-
+            val matchesPeriod = period == DateFilterPeriod.ALL || (date in periodStart..periodEnd)
+            val matchesDay = selectedDayRange == null || (date in selectedDayRange)
+            val matchesType = type == null || tx.transaction.type == type
+            val matchesAccount = accountId == null || tx.transaction.accountId == accountId || tx.transaction.toAccountId == accountId
+            val matchesCategory = categoryIds.isEmpty() || (tx.transaction.categoryId != null && categoryIds.contains(tx.transaction.categoryId))
             val matchesBookmarked = !onlyBookmarked || tx.transaction.isBookmarked
+
+            val matchesQuery = if (cleanQuery.isBlank()) {
+                true
+            } else {
+                val matchesAmount = isNumericSearch && (
+                    tx.transaction.amount.toString().contains(numericQuery) ||
+                        (tx.transaction.amount / 10).toString().contains(numericQuery)
+                    )
+                (tx.transaction.note?.contains(cleanQuery, ignoreCase = true) == true) ||
+                    (tx.categoryName?.contains(cleanQuery, ignoreCase = true) == true) ||
+                    (tx.accountName?.contains(cleanQuery, ignoreCase = true) == true) ||
+                    (tx.toAccountName?.contains(cleanQuery, ignoreCase = true) == true) ||
+                    matchesAmount
+            }
 
             matchesPeriod && matchesDay && matchesType && matchesAccount && matchesCategory && matchesQuery && matchesBookmarked
         }
@@ -250,12 +258,13 @@ class TransactionsViewModel(
             categories = categoriesList,
             rawFilteredTransactions = sorted,
             groupedTransactions = grouped,
+            totalTransactionsCount = transactions.size,
             totalIncome = incomeSum,
             totalExpense = expenseSum,
             onlyBookmarked = onlyBookmarked,
             isLoading = false
         )
-    }.stateIn(
+    }.flowOn(Dispatchers.Default).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = TransactionsUiState(isLoading = true)
@@ -296,6 +305,12 @@ class TransactionsViewModel(
         _selectedCategoryIds.value = emptySet()
         _selectedType.value = null
         _onlyBookmarked.value = false
+    }
+
+    fun clearSearchAndFilters() {
+        resetFilters()
+        _searchQuery.value = ""
+        _isSearchActive.value = false
     }
 
     fun toggleBookmark(transaction: TransactionEntity) {

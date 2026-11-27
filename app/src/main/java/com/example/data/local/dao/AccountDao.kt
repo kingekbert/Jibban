@@ -48,6 +48,7 @@ interface AccountDao {
             - COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.accountId = a.id AND t.type = 'EXPENSE'), 0)
             + COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.toAccountId = a.id AND t.type = 'TRANSFER'), 0)
             - COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.accountId = a.id AND t.type = 'TRANSFER'), 0)
+            + COALESCE((SELECT SUM(adj.amount) FROM account_balance_adjustments adj WHERE adj.accountId = a.id), 0)
           ) AS currentBalance,
           (
             SELECT COUNT(*) FROM transactions t WHERE t.accountId = a.id OR t.toAccountId = a.id
@@ -66,6 +67,7 @@ interface AccountDao {
             - COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.accountId = a.id AND t.type = 'EXPENSE'), 0)
             + COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.toAccountId = a.id AND t.type = 'TRANSFER'), 0)
             - COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.accountId = a.id AND t.type = 'TRANSFER'), 0)
+            + COALESCE((SELECT SUM(adj.amount) FROM account_balance_adjustments adj WHERE adj.accountId = a.id), 0)
           ) AS currentBalance,
           (
             SELECT COUNT(*) FROM transactions t WHERE t.accountId = a.id OR t.toAccountId = a.id
@@ -86,6 +88,7 @@ interface AccountDao {
             - COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.accountId = a.id AND t.type = 'EXPENSE' AND t.date <= :date), 0)
             + COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.toAccountId = a.id AND t.type = 'TRANSFER' AND t.date <= :date), 0)
             - COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.accountId = a.id AND t.type = 'TRANSFER' AND t.date <= :date), 0)
+            + COALESCE((SELECT SUM(adj.amount) FROM account_balance_adjustments adj WHERE adj.accountId = a.id AND adj.date <= :date), 0)
           )
         FROM accounts a
         WHERE a.id = :accountId

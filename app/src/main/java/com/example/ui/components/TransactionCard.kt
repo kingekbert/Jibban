@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +69,13 @@ fun TransactionCard(
         TransactionType.TRANSFER -> "${transactionWithDetails.accountName ?: ""} ← ${transactionWithDetails.toAccountName ?: ""}"
     }
 
+    val formattedAmount = remember(tx.amount) {
+        AmountFormatter.format(tx.amount, includeCurrency = false)
+    }
+    val formattedDate = remember(tx.date) {
+        DateFormatter.formatShort(tx.date)
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -85,7 +93,12 @@ fun TransactionCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(
+                    start = 14.dp,
+                    top = 14.dp,
+                    bottom = 14.dp,
+                    end = if (onToggleBookmark != null) 4.dp else 14.dp
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -145,7 +158,7 @@ fun TransactionCard(
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = "$amountPrefix ${AmountFormatter.format(tx.amount, includeCurrency = false)}",
+                        text = "$amountPrefix $formattedAmount",
                         style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                         fontWeight = FontWeight.SemiBold,
                         color = amountColor
@@ -165,23 +178,11 @@ fun TransactionCard(
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
-                        text = DateFormatter.formatShort(tx.date),
+                        text = formattedDate,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (onToggleBookmark != null) {
-                        IconButton(
-                            onClick = onToggleBookmark,
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (tx.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = if (tx.isBookmarked) "حذف نشان" else "نشانه‌گذاری",
-                                tint = if (tx.isBookmarked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                                modifier = Modifier.size(17.dp)
-                            )
-                        }
-                    } else if (tx.isBookmarked) {
+                    if (onToggleBookmark == null && tx.isBookmarked) {
                         Icon(
                             imageVector = Icons.Filled.Bookmark,
                             contentDescription = "نشانه‌دار",
@@ -189,6 +190,20 @@ fun TransactionCard(
                             modifier = Modifier.size(15.dp)
                         )
                     }
+                }
+            }
+
+            if (onToggleBookmark != null) {
+                IconButton(
+                    onClick = onToggleBookmark,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = if (tx.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        contentDescription = if (tx.isBookmarked) "حذف نشان" else "نشانه‌گذاری",
+                        tint = if (tx.isBookmarked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }

@@ -2,6 +2,7 @@ package com.example.data.backup
 
 import androidx.room.withTransaction
 import com.example.data.local.FinTrackDatabase
+import com.example.data.local.entity.AccountBalanceAdjustmentEntity
 import com.example.data.local.entity.AccountBalanceSnapshotEntity
 import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.AccountSmsSenderEntity
@@ -44,7 +45,8 @@ data class BackupData(
     val group_expenses: List<GroupExpenseEntity>? = null,
     val group_expense_shares: List<GroupExpenseShareEntity>? = null,
     val account_sms_senders: List<AccountSmsSenderEntity>? = null,
-    val account_balance_snapshots: List<AccountBalanceSnapshotEntity>? = null
+    val account_balance_snapshots: List<AccountBalanceSnapshotEntity>? = null,
+    val account_balance_adjustments: List<AccountBalanceAdjustmentEntity>? = null
 )
 
 sealed class BackupValidationResult {
@@ -80,6 +82,7 @@ private class RoomBackupStorageAdapter(
         val groupExpenseShares = database.groupExpenseDao().getAllShares()
         val accountSmsSenders = database.accountSmsSenderDao().getAllSendersList()
         val balanceSnapshots = database.accountBalanceSnapshotDao().getAll().first()
+        val balanceAdjustments = database.accountBalanceAdjustmentDao().getAllList()
 
         return BackupData(
             backupFormatVersion = BackupManager.CURRENT_BACKUP_FORMAT_VERSION,
@@ -98,13 +101,15 @@ private class RoomBackupStorageAdapter(
             group_expenses = groupExpenses,
             group_expense_shares = groupExpenseShares,
             account_sms_senders = accountSmsSenders,
-            account_balance_snapshots = balanceSnapshots
+            account_balance_snapshots = balanceSnapshots,
+            account_balance_adjustments = balanceAdjustments
         )
     }
 
     override suspend fun replaceAllDataAtomically(backupData: BackupData) {
         database.withTransaction {
             // 1. Delete children first in strict reverse foreign-key dependency order
+            database.accountBalanceAdjustmentDao().deleteAll()
             database.accountBalanceSnapshotDao().deleteAll()
             database.accountSmsSenderDao().deleteAll()
             database.savingsGoalDao().deleteAllEntries()
@@ -147,8 +152,9 @@ private class RoomBackupStorageAdapter(
                 database.groupExpenseDao().insertShares(shareList)
             }
 
-            // 8. Insert account balance snapshots (depend on accounts)
+            // 8. Insert account balance snapshots & isolated balance adjustments (depend on accounts)
             backupData.account_balance_snapshots?.forEach { database.accountBalanceSnapshotDao().insert(it) }
+            backupData.account_balance_adjustments?.forEach { database.accountBalanceAdjustmentDao().insert(it) }
         }
     }
 }
@@ -176,7 +182,8 @@ class BackupManager internal constructor(
             "group_expenses",
             "group_expense_shares",
             "account_sms_senders",
-            "account_balance_snapshots"
+            "account_balance_snapshots",
+            "account_balance_adjustments"
         )
     }
 
@@ -386,6 +393,18 @@ class BackupManager internal constructor(
                 }
                 if (snap.accountId !in accountIds) {
                     return "ارجاع نامعتبر به حساب در اسنپ‌شات مانده حساب یافت شد."
+                }
+            }
+        }
+
+        // Account Balance Adjustments + FK check to accounts
+        backupData.account_balance_adjustments?.let { adjustments ->
+            for (adj in adjustments) {
+                if (isNullRef(adj) || adj.date <= 0L || adj.amount == 0L || adj.id < 0L) {
+                    return "اطلاعات تعدیل مانده حساب در فایل پشتیبان نامعتبر است."
+                }
+                if (adj.accountId !in accountIds) {
+                    return "ارجاع نامعتبر به حساب در تعدیل مانده حساب یافت شد."
                 }
             }
         }

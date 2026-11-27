@@ -6,6 +6,7 @@ object Constants {
 
     // Preference Keys
     const val KEY_LAST_ACCOUNT_ID = "key_last_account_id"
+    const val KEY_LAST_TO_ACCOUNT_ID = "key_last_to_account_id"
     const val KEY_LAST_CATEGORY_ID = "key_last_category_id"
     const val KEY_LAST_EXPENSE_CATEGORY_ID = "key_last_expense_category_id"
     const val KEY_LAST_INCOME_CATEGORY_ID = "key_last_income_category_id"

@@ -27,11 +27,33 @@ data class SmsPatternLearnerUiState(
     val bankName: String = "",
     val extractedFields: List<ExtractedField> = emptyList(),
     val existingPatterns: List<SmsPatternEntity> = emptyList(),
+    val patternSearchQuery: String = "",
+    val selectedBankFilter: String? = null,
+    val filterOnlySelectedAccount: Boolean = false,
     val editingPatternId: Long? = null,
     val isSuccess: Boolean = false,
     val errorMessage: String? = null,
     val isLoading: Boolean = false
-)
+) {
+    val selectedAccount: AccountEntity?
+        get() = accounts.find { it.id == selectedAccountId }
+
+    val availableBankFilters: List<String>
+        get() = SmsPatternLearnerViewModel.extractAvailableBanks(existingPatterns)
+
+    val filteredPatterns: List<SmsPatternEntity>
+        get() = SmsPatternLearnerViewModel.filterPatterns(
+            patterns = existingPatterns,
+            query = patternSearchQuery,
+            selectedBankFilter = selectedBankFilter,
+            filterOnlySelectedAccount = filterOnlySelectedAccount,
+            selectedAccount = selectedAccount,
+            allAccounts = accounts
+        )
+
+    val hasActivePatternFilters: Boolean
+        get() = patternSearchQuery.isNotBlank() || selectedBankFilter != null || filterOnlySelectedAccount
+}
 
 class SmsPatternLearnerViewModel(
     private val smsPatternRepository: SmsPatternRepository,
@@ -80,7 +102,17 @@ class SmsPatternLearnerViewModel(
 
         viewModelScope.launch {
             smsPatternRepository.allPatterns.collect { patterns ->
-                _uiState.update { it.copy(existingPatterns = patterns) }
+                _uiState.update { state ->
+                    val validBankFilter = state.selectedBankFilter?.takeIf { activeBank ->
+                        extractAvailableBanks(patterns).any {
+                            normalizeSearchText(it) == normalizeSearchText(activeBank)
+                        }
+                    }
+                    state.copy(
+                        existingPatterns = patterns,
+                        selectedBankFilter = validBankFilter
+                    )
+                }
             }
         }
     }
@@ -108,6 +140,38 @@ class SmsPatternLearnerViewModel(
 
     fun setBankName(name: String) {
         _uiState.update { it.copy(bankName = name) }
+    }
+
+    fun setPatternSearchQuery(query: String) {
+        _uiState.update { it.copy(patternSearchQuery = query) }
+    }
+
+    fun setBankFilter(bankName: String?) {
+        _uiState.update { current ->
+            val nextBank = if (bankName != null &&
+                current.selectedBankFilter != null &&
+                normalizeSearchText(current.selectedBankFilter) == normalizeSearchText(bankName)
+            ) {
+                null
+            } else {
+                bankName
+            }
+            current.copy(selectedBankFilter = nextBank)
+        }
+    }
+
+    fun setFilterOnlySelectedAccount(onlySelected: Boolean) {
+        _uiState.update { it.copy(filterOnlySelectedAccount = onlySelected) }
+    }
+
+    fun clearPatternSearchAndFilters() {
+        _uiState.update {
+            it.copy(
+                patternSearchQuery = "",
+                selectedBankFilter = null,
+                filterOnlySelectedAccount = false
+            )
+        }
     }
 
     fun analyzeSms() {
@@ -242,6 +306,138 @@ class SmsPatternLearnerViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return SmsPatternLearnerViewModel(smsPatternRepository, accountRepository, accountId, initialSampleText, initialPatternId) as T
+        }
+    }
+
+    companion object {
+        private val persianDigits = charArrayOf('۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹')
+        private val arabicDigits = charArrayOf('٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩')
+
+        /**
+         * Normalizes Persian/Arabic letter variants (ی/ي, ک/ك), digits (Persian/Arabic -> ASCII),
+         * and whitespace for reliable search and filtering across SMS patterns.
+         */
+        fun normalizeSearchText(input: String): String {
+            if (input.isBlank()) return ""
+            val sb = StringBuilder(input.length)
+            for (ch in input.trim().lowercase()) {
+                val pIdx = persianDigits.indexOf(ch)
+                val aIdx = if (pIdx == -1) arabicDigits.indexOf(ch) else -1
+                when {
+                    pIdx != -1 -> sb.append(('0'.code + pIdx).toChar())
+                    aIdx != -1 -> sb.append(('0'.code + aIdx).toChar())
+                    ch == 'ي' || ch == 'ى' -> sb.append('ی')
+                    ch == 'ك' -> sb.append('ک')
+                    ch == '\u200C' || ch == '\u200F' || ch == '\u200E' -> sb.append(' ')
+                    else -> sb.append(ch)
+                }
+            }
+            return sb.toString().replace(Regex("\\s+"), " ").trim()
+        }
+
+        private fun digitsOnly(input: String?): String {
+            if (input.isNullOrBlank()) return ""
+            return normalizeSearchText(input).filter { it.isDigit() }
+        }
+
+        fun extractAvailableBanks(patterns: List<SmsPatternEntity>): List<String> {
+            val seenNormalized = LinkedHashSet<String>()
+            val result = mutableListOf<String>()
+            for (pattern in patterns) {
+                val bank = pattern.bankName?.trim().orEmpty()
+                if (bank.isBlank()) continue
+                val norm = normalizeSearchText(bank)
+                if (seenNormalized.add(norm)) {
+                    result.add(bank)
+                }
+            }
+            return result
+        }
+
+        fun matchesAccount(pattern: SmsPatternEntity, account: AccountEntity): Boolean {
+            val patternIdentDigits = digitsOnly(pattern.accountIdentifier)
+            val cardDigits = digitsOnly(account.cardNumber)
+            val shabaDigits = digitsOnly(account.shabaNumber)
+
+            if (patternIdentDigits.isNotEmpty()) {
+                if (cardDigits.isNotEmpty() && (
+                        patternIdentDigits == cardDigits ||
+                            cardDigits.endsWith(patternIdentDigits) ||
+                            patternIdentDigits.endsWith(cardDigits.takeLast(4))
+                        )
+                ) {
+                    return true
+                }
+                if (shabaDigits.isNotEmpty() && (
+                        patternIdentDigits == shabaDigits ||
+                            shabaDigits.contains(patternIdentDigits) ||
+                            patternIdentDigits.contains(shabaDigits.takeLast(6))
+                        )
+                ) {
+                    return true
+                }
+            }
+
+            val normAccName = normalizeSearchText(account.name)
+            val normBank = normalizeSearchText(pattern.bankName.orEmpty())
+            val normIdent = normalizeSearchText(pattern.accountIdentifier)
+            if (normAccName.isNotEmpty()) {
+                if (normBank.isNotEmpty() && (normAccName.contains(normBank) || normBank.contains(normAccName))) {
+                    return true
+                }
+                if (normIdent.isNotEmpty() && normIdent == normAccName) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        fun filterPatterns(
+            patterns: List<SmsPatternEntity>,
+            query: String,
+            selectedBankFilter: String? = null,
+            filterOnlySelectedAccount: Boolean = false,
+            selectedAccount: AccountEntity? = null,
+            allAccounts: List<AccountEntity> = emptyList()
+        ): List<SmsPatternEntity> {
+            val normQuery = normalizeSearchText(query)
+            val queryTokens = if (normQuery.isBlank()) emptyList() else normQuery.split(" ").filter { it.isNotBlank() }
+            val normBankFilter = selectedBankFilter?.let { normalizeSearchText(it) }?.takeIf { it.isNotBlank() }
+
+            return patterns.filter { pattern ->
+                if (filterOnlySelectedAccount && selectedAccount != null && !matchesAccount(pattern, selectedAccount)) {
+                    return@filter false
+                }
+
+                if (normBankFilter != null) {
+                    val patternBank = normalizeSearchText(pattern.bankName.orEmpty())
+                    if (patternBank != normBankFilter) {
+                        return@filter false
+                    }
+                }
+
+                if (queryTokens.isEmpty()) {
+                    true
+                } else {
+                    val linkedAccountNames = allAccounts
+                        .filter { matchesAccount(pattern, it) }
+                        .joinToString(" ") { normalizeSearchText(it.name) }
+
+                    val searchableCorpus = buildString {
+                        append(normalizeSearchText(pattern.bankName.orEmpty()))
+                        append(' ')
+                        append(normalizeSearchText(pattern.accountIdentifier))
+                        append(' ')
+                        append(normalizeSearchText(pattern.sampleSms))
+                        if (linkedAccountNames.isNotBlank()) {
+                            append(' ')
+                            append(linkedAccountNames)
+                        }
+                    }
+
+                    queryTokens.all { token -> searchableCorpus.contains(token) }
+                }
+            }
         }
     }
 }

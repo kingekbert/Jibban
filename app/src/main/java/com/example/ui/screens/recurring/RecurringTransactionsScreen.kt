@@ -302,7 +302,7 @@ fun RecurringTransactionsScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "مبلغ از حساب «${item.accountName ?: "نامشخص"}» کسر/واریز خواهد شد و تاریخ سررسید بعدی بروزرسانی می‌شود.",
+                        text = "مبلغ از حساب «${item.accountName ?: "نامشخص"}» کسر/واریز خواهد شد و تاریخ سررسید بعدی به‌روزرسانی می‌شود.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

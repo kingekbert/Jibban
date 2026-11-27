@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -238,6 +237,21 @@ fun ScanSmsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
     ) { innerPadding ->
+        val unregisteredItems = remember(state.scannedList) {
+            state.scannedList.filter { !it.isRegistered }
+        }
+        val registeredItems = remember(state.scannedList) {
+            state.scannedList.filter { it.isRegistered }
+        }
+        val transferBySmsId = remember(state.detectedTransfers) {
+            buildMap<String, DetectedTransfer>(state.detectedTransfers.size * 2) {
+                state.detectedTransfers.forEach { transfer ->
+                    put(transfer.withdrawalItem.id, transfer)
+                    put(transfer.depositItem.id, transfer)
+                }
+            }
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -434,7 +448,7 @@ fun ScanSmsScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "همه تراکنش‌های یافت شده قبلاً ثبت شده‌اند یا پیامک جدیدی وجود ندارد.",
+                                    text = "همه تراکنش‌های یافت‌شده قبلاً ثبت شده‌اند یا پیامک جدیدی وجود ندارد.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -444,7 +458,7 @@ fun ScanSmsScreen(
                     }
                 } else {
                     if (state.detectedTransfers.isNotEmpty()) {
-                        item {
+                        item(key = "header_transfers") {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -457,7 +471,7 @@ fun ScanSmsScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "انتقال‌های بین حسابی شناسایی شده (${state.detectedTransfers.size})".toPersianDigits(),
+                                    text = "انتقال‌های بین‌حسابی شناسایی‌شده (${state.detectedTransfers.size})".toPersianDigits(),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -465,7 +479,7 @@ fun ScanSmsScreen(
                             }
                         }
 
-                        itemsIndexed(state.detectedTransfers, key = { index, tr -> "transfer_${tr.id}_$index" }) { _, transfer ->
+                        items(state.detectedTransfers, key = { "transfer_${it.id}" }) { transfer ->
                             DetectedTransferCard(
                                 transfer = transfer,
                                 onRegisterClick = {
@@ -486,16 +500,13 @@ fun ScanSmsScreen(
                             )
                         }
 
-                        item {
+                        item(key = "spacer_transfers") {
                             Spacer(modifier = Modifier.height(4.dp))
                         }
                     }
 
-                    val unregisteredItems = state.scannedList.filter { !it.isRegistered }
-                    val registeredItems = state.scannedList.filter { it.isRegistered }
-
                     if (unregisteredItems.isNotEmpty()) {
-                        item {
+                        item(key = "header_unregistered") {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -523,10 +534,8 @@ fun ScanSmsScreen(
                             }
                         }
 
-                        itemsIndexed(unregisteredItems, key = { index, it -> "unreg_${it.id}_$index" }) { _, item ->
-                            val matchingTransfer = state.detectedTransfers.find {
-                                it.withdrawalItem.id == item.id || it.depositItem.id == item.id
-                            }
+                        items(unregisteredItems, key = { "unreg_${it.id}" }) { item ->
+                            val matchingTransfer = transferBySmsId[item.id]
                             ScannedSmsCard(
                                 item = item,
                                 matchingTransfer = matchingTransfer,
@@ -556,7 +565,7 @@ fun ScanSmsScreen(
                     }
 
                     if (registeredItems.isNotEmpty()) {
-                        item {
+                        item(key = "header_registered") {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -573,10 +582,8 @@ fun ScanSmsScreen(
                             }
                         }
 
-                        itemsIndexed(registeredItems, key = { index, it -> "reg_${it.id}_$index" }) { _, item ->
-                            val matchingTransfer = state.detectedTransfers.find {
-                                it.withdrawalItem.id == item.id || it.depositItem.id == item.id
-                            }
+                        items(registeredItems, key = { "reg_${it.id}" }) { item ->
+                            val matchingTransfer = transferBySmsId[item.id]
                             ScannedSmsCard(
                                 item = item,
                                 matchingTransfer = matchingTransfer,
@@ -957,7 +964,7 @@ fun ScannedSmsCard(
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
-                                    text = "انتقال بین حسابی",
+                                    text = "انتقال بین‌حسابی",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold
@@ -1054,7 +1061,7 @@ fun ScannedSmsCard(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "مانده با اپ نمی‌خواند (${AmountFormatter.format(absDiff)} ریال)",
+                                text = "مانده با اپ نمی‌خواند (${AmountFormatter.format(absDiff)})",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.error,
                                 fontWeight = FontWeight.Bold
@@ -1077,7 +1084,7 @@ fun ScannedSmsCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "قبلاً ثبت شده",
+                        contentDescription = "قبلاً ثبت‌شده",
                         tint = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32),
                         modifier = Modifier.size(20.dp)
                     )
@@ -1085,16 +1092,21 @@ fun ScannedSmsCard(
             } else {
                 IconButton(
                     onClick = onAddClick,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "ثبت تراکنش",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "ثبت تراکنش",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }

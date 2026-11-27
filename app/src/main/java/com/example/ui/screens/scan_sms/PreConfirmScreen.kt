@@ -398,7 +398,7 @@ fun PreConfirmScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "مانده با اپ نمی‌خواند ($diffStr ریال)",
+                                    text = "مانده با اپ نمی‌خواند ($diffStr)",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.error

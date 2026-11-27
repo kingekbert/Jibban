@@ -13,6 +13,10 @@ class Preferences(private val context: Context) {
         get() = prefs.getLong(Constants.KEY_LAST_ACCOUNT_ID, Constants.DEFAULT_ACCOUNT_ID)
         set(value) = prefs.edit().putLong(Constants.KEY_LAST_ACCOUNT_ID, value).apply()
 
+    var lastToAccountId: Long
+        get() = prefs.getLong(Constants.KEY_LAST_TO_ACCOUNT_ID, 0L)
+        set(value) = prefs.edit().putLong(Constants.KEY_LAST_TO_ACCOUNT_ID, value).apply()
+
     var lastCategoryId: Long
         get() = prefs.getLong(Constants.KEY_LAST_CATEGORY_ID, 0L)
         set(value) = prefs.edit().putLong(Constants.KEY_LAST_CATEGORY_ID, value).apply()
