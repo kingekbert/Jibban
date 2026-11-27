@@ -1,5 +1,11 @@
 package com.example.ui.navigation
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -128,7 +134,49 @@ fun NavGraph(
             startDestination = Screen.Dashboard.route,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(innerPadding),
+            enterTransition = {
+                val isTabSwitch = initialState.destination.route in bottomNavRoutes &&
+                    targetState.destination.route in bottomNavRoutes
+                if (isTabSwitch) {
+                    fadeIn(animationSpec = tween(190))
+                } else {
+                    slideInHorizontally(
+                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                        initialOffsetX = { fullWidth -> -fullWidth / 6 }
+                    ) + fadeIn(animationSpec = tween(200))
+                }
+            },
+            exitTransition = {
+                val isTabSwitch = initialState.destination.route in bottomNavRoutes &&
+                    targetState.destination.route in bottomNavRoutes
+                if (isTabSwitch) {
+                    fadeOut(animationSpec = tween(150))
+                } else {
+                    fadeOut(animationSpec = tween(160))
+                }
+            },
+            popEnterTransition = {
+                val isTabSwitch = initialState.destination.route in bottomNavRoutes &&
+                    targetState.destination.route in bottomNavRoutes
+                if (isTabSwitch) {
+                    fadeIn(animationSpec = tween(190))
+                } else {
+                    fadeIn(animationSpec = tween(200))
+                }
+            },
+            popExitTransition = {
+                val isTabSwitch = initialState.destination.route in bottomNavRoutes &&
+                    targetState.destination.route in bottomNavRoutes
+                if (isTabSwitch) {
+                    fadeOut(animationSpec = tween(150))
+                } else {
+                    slideOutHorizontally(
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        targetOffsetX = { fullWidth -> -fullWidth / 6 }
+                    ) + fadeOut(animationSpec = tween(180))
+                }
+            }
         ) {
             addCoreRoutes(
                 app = app,

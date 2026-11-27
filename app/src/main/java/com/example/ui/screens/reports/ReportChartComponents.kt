@@ -1,5 +1,8 @@
 package com.example.ui.screens.reports
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +27,8 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.domain.model.CategorySummary
 import com.example.ui.components.getCategoryIcon
+import com.example.ui.components.rememberAnimatedAmount
+import com.example.ui.components.rememberAnimatedProgress
 import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
 import com.example.util.AmountFormatter
@@ -48,6 +55,10 @@ fun ReportSummaryCard(
     totalExpense: Long,
     netBalance: Long
 ) {
+    val animatedIncome = rememberAnimatedAmount(targetAmount = totalIncome, durationMillis = 520)
+    val animatedExpense = rememberAnimatedAmount(targetAmount = totalExpense, durationMillis = 520)
+    val animatedNet = rememberAnimatedAmount(targetAmount = netBalance, durationMillis = 520)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -72,7 +83,7 @@ fun ReportSummaryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = AmountFormatter.format(totalIncome),
+                        text = AmountFormatter.format(animatedIncome),
                         style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                         fontWeight = FontWeight.Black,
                         color = IncomeColor
@@ -86,7 +97,7 @@ fun ReportSummaryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = AmountFormatter.format(totalExpense),
+                        text = AmountFormatter.format(animatedExpense),
                         style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                         fontWeight = FontWeight.Black,
                         color = ExpenseColor
@@ -112,7 +123,7 @@ fun ReportSummaryCard(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = AmountFormatter.format(netBalance),
+                    text = AmountFormatter.format(animatedNet),
                     style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
                     fontWeight = FontWeight.Black,
                     color = if (netBalance >= 0) IncomeColor else ExpenseColor
@@ -130,6 +141,16 @@ fun DonutChart(
     modifier: Modifier = Modifier
 ) {
     val strokeWidth = 28.dp
+    val sweepProgress = remember { Animatable(0f) }
+    val animatedTotal = rememberAnimatedAmount(targetAmount = totalAmount, durationMillis = 560)
+
+    LaunchedEffect(categorySummaries, totalAmount, isExpense) {
+        sweepProgress.snapTo(0f)
+        sweepProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 680, easing = FastOutSlowInEasing)
+        )
+    }
 
     Box(
         modifier = modifier,
@@ -138,6 +159,7 @@ fun DonutChart(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokePx = strokeWidth.toPx()
             var startAngle = -90f
+            val progress = sweepProgress.value
 
             if (totalAmount <= 0L || categorySummaries.isEmpty()) {
                 drawArc(
@@ -148,8 +170,16 @@ fun DonutChart(
                     style = Stroke(width = strokePx, cap = StrokeCap.Butt)
                 )
             } else {
+                // Subtle background track while sweeping in
+                drawArc(
+                    color = Color.LightGray.copy(alpha = 0.18f),
+                    startAngle = 0f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                )
                 categorySummaries.forEach { summary ->
-                    val sweepAngle = (summary.percentage / 100f) * 360f
+                    val sweepAngle = (summary.percentage / 100f) * 360f * progress
                     if (sweepAngle > 0f) {
                         drawArc(
                             color = Color(summary.category.color),
@@ -172,8 +202,8 @@ fun DonutChart(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = AmountFormatter.format(totalAmount, includeCurrency = false),
-                style = MaterialTheme.typography.titleMedium,
+                text = AmountFormatter.format(animatedTotal, includeCurrency = false),
+                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                 fontWeight = FontWeight.Bold,
                 color = if (isExpense) ExpenseColor else IncomeColor
             )
@@ -247,6 +277,15 @@ fun MonthlyTrendCard(
     if (monthlyTrends.isEmpty()) return
 
     val maxAmount = monthlyTrends.maxOfOrNull { maxOf(it.income, it.expense) } ?: 0L
+    val barGrowth = remember { Animatable(0f) }
+
+    LaunchedEffect(monthlyTrends) {
+        barGrowth.snapTo(0f)
+        barGrowth.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing)
+        )
+    }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -345,7 +384,9 @@ fun MonthlyTrendCard(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(if (hasIncome) incomeRatio else 0.03f)
+                                        .fillMaxHeight(
+                                            if (hasIncome) (incomeRatio * barGrowth.value).coerceAtLeast(0.03f) else 0.03f
+                                        )
                                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                                         .background(if (hasIncome) IncomeColor else IncomeColor.copy(alpha = 0.15f))
                                 )
@@ -353,7 +394,9 @@ fun MonthlyTrendCard(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(if (hasExpense) expenseRatio else 0.03f)
+                                        .fillMaxHeight(
+                                            if (hasExpense) (expenseRatio * barGrowth.value).coerceAtLeast(0.03f) else 0.03f
+                                        )
                                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                                         .background(if (hasExpense) ExpenseColor else ExpenseColor.copy(alpha = 0.15f))
                                 )
@@ -456,9 +499,10 @@ fun CategorySummaryItem(
                 }
             }
 
-            // Percentage Bar
+            // Animated Percentage Bar
+            val animatedPercent = rememberAnimatedProgress(summary.percentage / 100f)
             LinearProgressIndicator(
-                progress = { (summary.percentage / 100f).coerceIn(0f, 1f) },
+                progress = { animatedPercent },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)

@@ -138,7 +138,10 @@ internal fun NavGraphBuilder.addManagementRoutes(
         )
         ReconciliationScreen(
             viewModel = viewModel,
-            onNavigateBack = { navController.popBackStack() }
+            onNavigateBack = { navController.popBackStack() },
+            onNavigateToScanSms = {
+                navController.navigate(Screen.ScanSms.route)
+            }
         )
     }
 

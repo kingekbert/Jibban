@@ -6,6 +6,14 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,9 +38,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Pattern
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -70,7 +78,9 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -365,12 +375,64 @@ fun ScanSmsScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Sms,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(36.dp)
+                            val pulseTransition = rememberInfiniteTransition(label = "smsScanPulse")
+                            val ringScale by pulseTransition.animateFloat(
+                                initialValue = 1f,
+                                targetValue = 1.55f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(1100, easing = FastOutSlowInEasing),
+                                    repeatMode = RepeatMode.Restart
+                                ),
+                                label = "ringScale"
                             )
+                            val ringAlpha by pulseTransition.animateFloat(
+                                initialValue = 0.4f,
+                                targetValue = 0f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(1100, easing = FastOutSlowInEasing),
+                                    repeatMode = RepeatMode.Restart
+                                ),
+                                label = "ringAlpha"
+                            )
+                            val iconPulse by pulseTransition.animateFloat(
+                                initialValue = 1f,
+                                targetValue = 1.08f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(550, easing = FastOutSlowInEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "iconPulse"
+                            )
+                            Box(
+                                modifier = Modifier.size(64.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (state.isLoading) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .scale(ringScale)
+                                            .alpha(ringAlpha)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary)
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(54.dp)
+                                        .scale(if (state.isLoading) iconPulse else 1f)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Sms,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(30.dp)
+                                    )
+                                }
+                            }
                             Text(
                                 text = "اسکن و تحلیل پیامک‌های بانکی",
                                 style = MaterialTheme.typography.titleMedium,
@@ -447,6 +509,80 @@ fun ScanSmsScreen(
 
             // Results Section
             if (state.isScanCompleted && !state.isLoading) {
+                if (state.reconciliationAlerts.isNotEmpty()) {
+                    items(state.reconciliationAlerts, key = { "reconcile_alert_${it.accountId}" }) { alert ->
+                        val absDiff = kotlin.math.abs(alert.diff)
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateItem(
+                                    fadeInSpec = tween(220),
+                                    fadeOutSpec = tween(180),
+                                    placementSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                )
+                                .clickable { onNavigateToReconciliation(alert.accountId) },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "اختلاف مانده حساب «${alert.accountName}»",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    TextButton(
+                                        onClick = { onNavigateToReconciliation(alert.accountId) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "تطبیق مانده",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "مانده اپ: ${AmountFormatter.formatRial(alert.appBalance)}  |  آخرین پیامک بانک: ${AmountFormatter.formatRial(alert.bankBalance)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Text(
+                                    text = "مقدار اختلاف: ${AmountFormatter.formatRial(absDiff)}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+                }
+
                 if (state.scannedList.isEmpty()) {
                     item {
                         Box(
@@ -519,7 +655,12 @@ fun ScanSmsScreen(
                                 },
                                 onLongClick = {
                                     rawSmsDialogText = "پیامک برداشت:\n${transfer.withdrawalItem.rawText}\n\nپیامک واریز:\n${transfer.depositItem.rawText}"
-                                }
+                                },
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = tween(240),
+                                    fadeOutSpec = tween(180),
+                                    placementSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                )
                             )
                         }
 
@@ -596,7 +737,12 @@ fun ScanSmsScreen(
                                 },
                                 onLongClick = {
                                     rawSmsDialogText = item.rawText
-                                }
+                                },
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = tween(240),
+                                    fadeOutSpec = tween(180),
+                                    placementSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                )
                             )
                         }
                     }
@@ -628,7 +774,12 @@ fun ScanSmsScreen(
                                 onAddClick = {},
                                 onLongClick = {
                                     rawSmsDialogText = item.rawText
-                                }
+                                },
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = tween(240),
+                                    fadeOutSpec = tween(180),
+                                    placementSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                )
                             )
                         }
                     }
@@ -643,7 +794,8 @@ fun ScanSmsScreen(
 fun DetectedTransferCard(
     transfer: DetectedTransfer,
     onRegisterClick: () -> Unit,
-    onLongClick: () -> Unit = {}
+    onLongClick: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
     val isRegistered = transfer.isRegistered
@@ -663,7 +815,7 @@ fun DetectedTransferCard(
     val primaryColor = MaterialTheme.colorScheme.primary
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
@@ -896,7 +1048,8 @@ fun ScannedSmsCard(
     onReconcileClick: (accountId: Long) -> Unit = {},
     onAddClick: () -> Unit,
     onIgnoreClick: (() -> Unit)? = null,
-    onLongClick: () -> Unit = {}
+    onLongClick: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
     val parsed = item.parsedSms
@@ -936,7 +1089,7 @@ fun ScannedSmsCard(
     }
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .combinedClickable(
@@ -1080,33 +1233,6 @@ fun ScannedSmsCard(
                         )
                     }
                 }
-
-                if (item.balanceDiff != null && item.balanceDiff != 0L && item.matchedAccountId != null) {
-                    val absDiff = kotlin.math.abs(item.balanceDiff)
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f))
-                            .clickable { onReconcileClick(item.matchedAccountId) }
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "مانده با اپ نمی‌خواند (${AmountFormatter.format(absDiff)})",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.error,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -1232,7 +1358,7 @@ fun UnrecognizedSmsCard(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Pattern,
+                    imageVector = Icons.Default.AutoFixHigh,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )

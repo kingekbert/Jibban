@@ -525,7 +525,7 @@ private fun WidgetScanLoadingState(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "فیلتر هوشمند کدهای یکبار مصرف و پیامک‌های ثبت‌شده",
+            text = "فیلتر هوشمند کدهای یک‌بارمصرف و پیامک‌های ثبت‌شده",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

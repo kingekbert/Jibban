@@ -29,7 +29,17 @@ data class ScannedSmsItem(
     val isRegistered: Boolean = false,
     val sender: String = "",
     val balanceDiff: Long? = null,
-    val matchedAccountId: Long? = null
+    val matchedAccountId: Long? = null,
+    val receivedAt: Long = 0L
+)
+
+data class AccountReconciliationAlert(
+    val accountId: Long,
+    val accountName: String,
+    val appBalance: Long,
+    val bankBalance: Long,
+    val diff: Long,
+    val latestSmsDate: Long
 )
 
 data class ScanSmsUiState(
@@ -37,6 +47,7 @@ data class ScanSmsUiState(
     val isLoading: Boolean = false,
     val scannedList: List<ScannedSmsItem> = emptyList(),
     val detectedTransfers: List<com.example.util.DetectedTransfer> = emptyList(),
+    val reconciliationAlerts: List<AccountReconciliationAlert> = emptyList(),
     val hasPermission: Boolean = false,
     val isScanCompleted: Boolean = false,
     val errorMessage: String? = null,
@@ -92,7 +103,6 @@ class ScanSmsViewModel(
                     val consumedManualTxIds = mutableSetOf<Long>()
                     val seenHashes = mutableSetOf<String>()
                     val ignoredHashes = com.example.util.IgnoredSmsStore.getIgnoredHashes(context)
-                    val balanceAtDateCache = mutableMapOf<Pair<Long, Long>, Long?>()
 
                     val uri = Uri.parse("content://sms/inbox")
                     val projection = arrayOf("_id", "address", "body", "date")
@@ -142,9 +152,11 @@ class ScanSmsViewModel(
 
                                 val effectiveAccountIdent = if (accountIdent.isNotBlank()) accountIdent else (senderAccount?.cardNumber?.takeLast(4) ?: "")
                                 val effectiveBankName = if (bankName.isNotBlank()) bankName else (senderAccount?.name ?: "")
+                                val extractedBalance = parsed.balance ?: com.example.util.PatternMatcher.extractBalanceFromText(body)
                                 val effectiveParsed = parsed.copy(
                                     bankName = if (parsed.bankName.isNullOrBlank()) senderAccount?.name else parsed.bankName,
-                                    accountIdentifier = if (parsed.accountIdentifier.isNullOrBlank()) (senderAccount?.cardNumber?.takeLast(4) ?: "") else parsed.accountIdentifier
+                                    accountIdentifier = if (parsed.accountIdentifier.isNullOrBlank()) (senderAccount?.cardNumber?.takeLast(4) ?: "") else parsed.accountIdentifier,
+                                    balance = extractedBalance
                                 )
 
                                 // Calculate canonical v2 SHA-256 hash including transactionType & accountIdentifier
@@ -160,6 +172,13 @@ class ScanSmsViewModel(
                                 // Avoid duplicate within current scan list or user-ignored SMS
                                 if (hash in ignoredHashes || !seenHashes.add(hash)) continue
 
+                                val matchedAcc = com.example.util.BackgroundSmsScanner.resolveAccountForSms(
+                                    senderAccount = senderAccount,
+                                    accountIdent = effectiveAccountIdent,
+                                    bankName = effectiveBankName,
+                                    allAccounts = allAccounts
+                                )
+
                                 val legacyHashes = setOf(
                                     com.example.util.SmsHashUtil.calculateLegacyV1Hash(sender, amt, smsDate, body),
                                     com.example.util.SmsHashUtil.calculateLegacySimpleHash(amt, smsDate, effectiveAccountIdent)
@@ -172,7 +191,7 @@ class ScanSmsViewModel(
                                         date = smsDate,
                                         primaryHash = hash,
                                         legacyHashes = legacyHashes,
-                                        matchedAccountId = senderAccount?.id,
+                                        matchedAccountId = matchedAcc?.id,
                                         accountIdent = effectiveAccountIdent,
                                         bankName = effectiveBankName
                                     ),
@@ -180,36 +199,6 @@ class ScanSmsViewModel(
                                     accountsById = accountMap,
                                     consumedManualTxIds = consumedManualTxIds
                                 )
-
-                                var itemBalDiff: Long? = null
-                                var itemMatchedAccId: Long? = null
-                                if (effectiveParsed.balance != null) {
-                                    val matchedAcc = senderAccount ?: if (effectiveAccountIdent.isNotBlank()) {
-                                        allAccounts.find { acc ->
-                                            (acc.cardNumber != null && (acc.cardNumber.contains(effectiveAccountIdent) || effectiveAccountIdent.contains(acc.cardNumber.takeLast(4)))) ||
-                                            (acc.shabaNumber != null && acc.shabaNumber.contains(effectiveAccountIdent)) ||
-                                            (acc.name.contains(effectiveAccountIdent) || effectiveAccountIdent.contains(acc.name))
-                                        }
-                                    } else if (effectiveBankName.isNotBlank()) {
-                                        allAccounts.find { acc -> acc.name.contains(effectiveBankName) || effectiveBankName.contains(acc.name) }
-                                    } else null
-
-                                    if (matchedAcc != null) {
-                                        itemMatchedAccId = matchedAcc.id
-                                        val appBal = if (reconciliationRepository != null) {
-                                            val cacheKey = matchedAcc.id to smsDate
-                                            if (balanceAtDateCache.containsKey(cacheKey)) {
-                                                balanceAtDateCache[cacheKey]
-                                            } else {
-                                                reconciliationRepository.calculateAppBalanceAtDate(matchedAcc.id, smsDate)
-                                                    .also { balanceAtDateCache[cacheKey] = it }
-                                            }
-                                        } else null
-                                        if (appBal != null) {
-                                            itemBalDiff = effectiveParsed.balance - appBal
-                                        }
-                                    }
-                                }
 
                                 scannedResult.add(
                                     ScannedSmsItem(
@@ -221,8 +210,9 @@ class ScanSmsViewModel(
                                         isRecognized = true,
                                         isRegistered = isRegistered,
                                         sender = sender,
-                                        balanceDiff = itemBalDiff,
-                                        matchedAccountId = itemMatchedAccId
+                                        balanceDiff = null,
+                                        matchedAccountId = matchedAcc?.id,
+                                        receivedAt = date
                                     )
                                 )
                             }
@@ -243,8 +233,9 @@ class ScanSmsViewModel(
 
                     val sortedItems = sortScannedItems(finalItems)
                     val sortedTransfers = sortDetectedTransfers(transfers)
+                    val alerts = computeAccountReconciliationAlerts(sortedItems, allAccounts)
 
-                    Pair(sortedItems, sortedTransfers)
+                    Triple(sortedItems, sortedTransfers, alerts)
                 }
 
                 val ignoredCount = com.example.util.IgnoredSmsStore.count(context)
@@ -253,6 +244,7 @@ class ScanSmsViewModel(
                         isLoading = false,
                         scannedList = items.first,
                         detectedTransfers = items.second,
+                        reconciliationAlerts = items.third,
                         isScanCompleted = true,
                         ignoredCount = ignoredCount
                     )
@@ -348,7 +340,7 @@ class ScanSmsViewModel(
         if (currentScanned.isEmpty()) return
         viewModelScope.launch {
             try {
-                val (sortedItems, sortedTransfers) = withContext(Dispatchers.IO) {
+                val (sortedItems, sortedTransfers, alerts) = withContext(Dispatchers.IO) {
                     val existingTransactions = transactionRepository.getAllTransactionsWithDetailsList()
                     val allAccounts = accountRepository.getAllAccountsList()
                     val accountMap = allAccounts.associateBy { it.id }
@@ -399,19 +391,81 @@ class ScanSmsViewModel(
                         updatedList
                     }
 
-                    Pair(sortScannedItems(finalList), sortDetectedTransfers(transfers))
+                    val sorted = sortScannedItems(finalList)
+                    val alertsResult = computeAccountReconciliationAlerts(sorted, allAccounts)
+                    Triple(sorted, sortDetectedTransfers(transfers), alertsResult)
                 }
 
                 _uiState.update { state ->
                     state.copy(
                         scannedList = sortedItems,
-                        detectedTransfers = sortedTransfers
+                        detectedTransfers = sortedTransfers,
+                        reconciliationAlerts = alerts
                     )
                 }
             } catch (e: Exception) {
                 // Ignore refresh failure
             }
         }
+    }
+
+    /**
+     * Checks account balance vs latest bank SMS balance ONLY for accounts where ALL recognized
+     * SMS items in the scan are already registered. Also updates the latest bank balance snapshot.
+     */
+    private suspend fun computeAccountReconciliationAlerts(
+        items: List<ScannedSmsItem>,
+        allAccounts: List<com.example.data.local.entity.AccountEntity>
+    ): List<AccountReconciliationAlert> {
+        val repo = reconciliationRepository ?: return emptyList()
+        if (items.isEmpty()) return emptyList()
+
+        val accountMap = allAccounts.associateBy { it.id }
+        val alerts = mutableListOf<AccountReconciliationAlert>()
+
+        val grouped = items.filter { it.matchedAccountId != null }.groupBy { it.matchedAccountId!! }
+        for ((accountId, accItems) in grouped) {
+            // Only apply reconciliation when ALL recognized SMS for this account are registered
+            if (accItems.isEmpty() || accItems.any { !it.isRegistered }) continue
+
+            val latestWithBalance = accItems
+                .filter { (it.parsedSms.balance ?: com.example.util.PatternMatcher.extractBalanceFromText(it.rawText)) != null }
+                .maxWithOrNull(
+                    compareBy<ScannedSmsItem> { if (it.receivedAt > 0L) it.receivedAt else it.date }
+                        .thenBy { it.date }
+                ) ?: continue
+
+            val bankBalance = latestWithBalance.parsedSms.balance
+                ?: com.example.util.PatternMatcher.extractBalanceFromText(latestWithBalance.rawText)
+                ?: continue
+
+            runCatching {
+                repo.recordSnapshot(
+                    accountId = accountId,
+                    smsDate = latestWithBalance.date,
+                    balance = bankBalance,
+                    smsHash = latestWithBalance.smsHash
+                )
+            }
+
+            val appBalance = repo.calculateCurrentAppBalance(accountId) ?: continue
+            val diff = bankBalance - appBalance
+            if (diff != 0L) {
+                val accountName = accountMap[accountId]?.name ?: "حساب بانکی"
+                alerts.add(
+                    AccountReconciliationAlert(
+                        accountId = accountId,
+                        accountName = accountName,
+                        appBalance = appBalance,
+                        bankBalance = bankBalance,
+                        diff = diff,
+                        latestSmsDate = latestWithBalance.date
+                    )
+                )
+            }
+        }
+
+        return alerts
     }
 
     private fun isOtpSms(text: String): Boolean {

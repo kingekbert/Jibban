@@ -52,7 +52,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Pattern
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -113,12 +113,12 @@ val AccountColorPalette = AppColorPalette
 val AccountIconsList = AppIconsList
 
 private val GeneralAccountIcons = listOf(
-    BankIconInfo("CASH", "نقدی", "CASH"),
+    BankIconInfo("CASH", "نقدی", "نقد"),
     BankIconInfo("wallet", "کیف پول", "کیف‌پول"),
     BankIconInfo("credit_card", "کارت", "کارت"),
     BankIconInfo("account_balance", "بانکی", "بانک"),
     BankIconInfo("store", "فروشگاه", "فروشگاه"),
-    BankIconInfo("attach_money", "ارز / پس‌انداز", "پس‌انداز")
+    BankIconInfo("savings", "پس‌انداز / صندوق", "پس‌انداز")
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -277,35 +277,7 @@ fun AddAccountScreen(
                 )
             }
 
-            // 2. Account Type Selection
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("نوع حساب", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = state.type == AccountType.BANK,
-                        onClick = { viewModel.setType(AccountType.BANK) },
-                        label = { Text("بانکی", fontSize = 12.sp) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    FilterChip(
-                        selected = state.type == AccountType.CASH,
-                        onClick = { viewModel.setType(AccountType.CASH) },
-                        label = { Text("نقدی / کیف پول", fontSize = 12.sp) },
-                        modifier = Modifier.weight(1.25f)
-                    )
-                    FilterChip(
-                        selected = state.type == AccountType.CREDIT_CARD,
-                        onClick = { viewModel.setType(AccountType.CREDIT_CARD) },
-                        label = { Text("کارت اعتباری", fontSize = 12.sp) },
-                        modifier = Modifier.weight(1.1f)
-                    )
-                }
-            }
-
-            // 3. Initial Balance
+            // 2. Initial Balance
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("موجودی اولیه (ریال)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 AmountInput(
@@ -314,9 +286,8 @@ fun AddAccountScreen(
                 )
             }
 
-            // 4. Unified Collapsible Appearance Section (Logo / Icon + Color)
-            val isCash = state.type == AccountType.CASH
-            val detectedBank = if (state.isNoLogo || isCash) null else (
+            // 3. Unified Collapsible Appearance Section (Logo / Icon + Color)
+            val detectedBank = if (state.isNoLogo) null else (
                 BankLogos.getBankById(state.logoResName)
                     ?: BankLogos.detectBank(state.cardNumber, state.name)
             )
@@ -338,7 +309,7 @@ fun AddAccountScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (!isCash && (!state.isNoLogo || state.logoImage != null)) {
+                        if (!state.isNoLogo || state.logoImage != null) {
                             BankLogoBadge(
                                 bankId = if (state.isNoLogo) null else state.logoResName,
                                 logoImage = if (state.isNoLogo) null else state.logoImage,
@@ -382,8 +353,8 @@ fun AddAccountScreen(
                             }
                             val appearanceSummary = when {
                                 state.logoImage != null -> "تصویر سفارشی از گالری"
-                                !isCash && !state.isNoLogo && detectedBank != null -> "بانک ${detectedBank.namePersian}"
-                                isCash || state.isNoLogo -> "آیکون و رنگ انتخابی"
+                                !state.isNoLogo && detectedBank != null -> "بانک ${detectedBank.namePersian}"
+                                state.isNoLogo -> "آیکون و رنگ انتخابی"
                                 else -> "تشخیص هوشمند لوگو و رنگ"
                             }
                             Text(
@@ -441,20 +412,18 @@ fun AddAccountScreen(
                                     Text("از گالری", fontSize = 12.sp)
                                 }
 
-                                if (!isCash) {
-                                    FilterChip(
-                                        selected = state.isNoLogo,
-                                        onClick = { viewModel.setNoLogo(!state.isNoLogo) },
-                                        label = { Text("بدون لوگو", fontSize = 12.sp) },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Default.Block,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    )
-                                }
+                                FilterChip(
+                                    selected = state.isNoLogo,
+                                    onClick = { viewModel.setNoLogo(!state.isNoLogo) },
+                                    label = { Text("بدون لوگو", fontSize = 12.sp) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Block,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                )
 
                                 if (state.logoResName != null || state.logoImage != null || state.isNoLogo) {
                                     TextButton(
@@ -475,42 +444,40 @@ fun AddAccountScreen(
                                 }
                             }
 
-                            // Bank Logos (only for non-cash accounts)
-                            if (!isCash) {
-                                Text(
-                                    text = "لوگوی بانک",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                LazyRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    items(BankLogos.banks, key = { it.id }) { bank ->
-                                        val isSelected = !state.isNoLogo &&
-                                            state.logoImage == null &&
-                                            (state.logoResName == bank.id || (state.logoResName == null && detectedBank?.id == bank.id))
-                                        FilterChip(
-                                            selected = isSelected,
-                                            onClick = {
-                                                viewModel.setLogoResName(bank.id)
-                                                viewModel.setColor(bank.color.toInt())
-                                            },
-                                            label = { Text(bank.namePersian, fontSize = 12.sp) },
-                                            leadingIcon = {
-                                                BankLogoBadge(
-                                                    bankId = bank.id,
-                                                    size = 22.dp,
-                                                    shapeRadius = 5.dp
-                                                )
-                                            }
-                                        )
-                                    }
+                            // Bank Logos
+                            Text(
+                                text = "لوگوی بانک",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(BankLogos.banks, key = { it.id }) { bank ->
+                                    val isSelected = !state.isNoLogo &&
+                                        state.logoImage == null &&
+                                        (state.logoResName == bank.id || (state.logoResName == null && detectedBank?.id == bank.id))
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = {
+                                            viewModel.setLogoResName(bank.id)
+                                            viewModel.setColor(bank.color.toInt())
+                                        },
+                                        label = { Text(bank.namePersian, fontSize = 12.sp) },
+                                        leadingIcon = {
+                                            BankLogoBadge(
+                                                bankId = bank.id,
+                                                size = 22.dp,
+                                                shapeRadius = 5.dp
+                                            )
+                                        }
+                                    )
                                 }
                             }
 
-                            // General Account Icons (for CASH or when "بدون لوگو" is enabled)
-                            if (isCash || state.isNoLogo) {
+                            // General Account Icons (when "بدون لوگو" is enabled)
+                            if (state.isNoLogo) {
                                 Text(
                                     text = "آیکون حساب",
                                     style = MaterialTheme.typography.labelLarge,
@@ -593,13 +560,8 @@ fun AddAccountScreen(
                 }
             }
 
-            // 5. Bank / Card / SMS Specific Collapsible Sections (hidden for CASH)
-            AnimatedVisibility(
-                visible = !isCash,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            // 4. Optional Bank / Card / SMS Collapsible Sections
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     // Collapsible Card & Shaba Details
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -891,7 +853,7 @@ fun AddAccountScreen(
                                             shape = RoundedCornerShape(10.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Pattern,
+                                                imageVector = Icons.Default.AutoFixHigh,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp)
                                             )
@@ -904,7 +866,6 @@ fun AddAccountScreen(
                         }
                     }
                 }
-            }
 
             Spacer(modifier = Modifier.height(8.dp))
         }

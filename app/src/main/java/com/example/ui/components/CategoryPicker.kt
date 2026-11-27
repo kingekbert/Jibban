@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,10 +26,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -112,19 +119,36 @@ private fun CategoryPickerItem(
     modifier: Modifier = Modifier
 ) {
     val categoryColor = Color(category.color)
+    val itemScale by animateFloatAsState(
+        targetValue = if (isSelected) 1.05f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "categoryScale_${category.id}"
+    )
+    val containerBg by animateColorAsState(
+        targetValue = if (isSelected) categoryColor.copy(alpha = 0.18f)
+        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        animationSpec = tween(200),
+        label = "categoryBg_${category.id}"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) categoryColor else Color.Transparent,
+        animationSpec = tween(200),
+        label = "categoryBorder_${category.id}"
+    )
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .fillMaxWidth()
+            .scale(itemScale)
             .testTag("category_item_${category.id}")
             .clip(RoundedCornerShape(14.dp))
-            .background(
-                if (isSelected) categoryColor.copy(alpha = 0.18f)
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-            )
+            .background(containerBg)
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) categoryColor else Color.Transparent,
+                color = borderColor,
                 shape = RoundedCornerShape(14.dp)
             )
             .clickable(onClick = onClick)

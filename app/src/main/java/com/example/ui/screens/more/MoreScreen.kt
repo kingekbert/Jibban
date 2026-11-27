@@ -19,13 +19,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.Card
@@ -98,7 +98,7 @@ fun MoreScreen(
             MoreMenuItem(
                 title = "بدهی و طلب",
                 subtitle = "مدیریت و پیگیری بدهی‌ها و طلب‌ها با دیگران",
-                icon = Icons.Default.Receipt,
+                icon = Icons.Default.Handshake,
                 iconColor = MaterialTheme.colorScheme.tertiary,
                 onClick = onNavigateToDebts,
                 testTag = "more_debts_item"
@@ -128,7 +128,7 @@ fun MoreScreen(
             MoreMenuItem(
                 title = "ورود دستی پیامک",
                 subtitle = "تحلیل و ثبت سریع تراکنش از متن کپی‌شده پیامک",
-                icon = Icons.Default.MailOutline,
+                icon = Icons.Default.ContentPaste,
                 iconColor = Color(0xFFE91E63),
                 onClick = onNavigateToImportSms,
                 testTag = "more_import_sms_item"
@@ -235,10 +235,10 @@ private fun MoreMenuItem(
             }
 
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                imageVector = Icons.Default.ChevronLeft,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                modifier = Modifier.size(22.dp)
             )
         }
     }

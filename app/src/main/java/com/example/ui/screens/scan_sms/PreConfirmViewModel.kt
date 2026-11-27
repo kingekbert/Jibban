@@ -125,7 +125,8 @@ class PreConfirmViewModel(
                 groupShares = emptyList(),
                 detectedTransfer = detectedTransfer,
                 transferFeeAmount = transferFee,
-                balance = targetItem.parsedSms.balance,
+                balance = targetItem.parsedSms.balance
+                    ?: com.example.util.PatternMatcher.extractBalanceFromText(targetItem.rawText),
                 balanceDiff = null
             )
         }
@@ -199,25 +200,8 @@ class PreConfirmViewModel(
                         recentPersonNames = recentNames
                     )
                 }
-
-                if (targetItem.parsedSms.balance != null && actualDefaultAccId != null) {
-                    checkBalanceDiff(actualDefaultAccId, targetItem.parsedSms.balance)
-                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = "خطا در بارگذاری حساب‌ها و دسته‌بندی‌ها") }
-            }
-        }
-    }
-
-    private fun checkBalanceDiff(accountId: Long, smsBalance: Long) {
-        viewModelScope.launch {
-            try {
-                val diag = reconciliationRepository?.getReconciliationDiagnosis(accountId, emptyList())
-                if (diag != null) {
-                    _uiState.update { it.copy(balanceDiff = smsBalance - diag.appBalance) }
-                }
-            } catch (e: Exception) {
-                // Ignore gracefully
             }
         }
     }
@@ -251,10 +235,6 @@ class PreConfirmViewModel(
 
     fun setSelectedAccount(accountId: Long) {
         _uiState.update { it.copy(selectedAccountId = accountId) }
-        val bal = _uiState.value.balance
-        if (bal != null) {
-            checkBalanceDiff(accountId, bal)
-        }
     }
 
     fun setSelectedToAccount(accountId: Long?) {
@@ -646,7 +626,7 @@ class PreConfirmViewModel(
 
     private suspend fun recordSnapshotIfPresent(accId: Long?, date: Long, hash: String) {
         val bal = _uiState.value.balance
-        if (bal != null && bal > 0L && accId != null) {
+        if (bal != null && bal >= 0L && accId != null) {
             try {
                 reconciliationRepository?.recordSnapshot(
                     accountId = accId,

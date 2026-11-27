@@ -72,23 +72,12 @@ class AccountDetailViewModel(
             ))
         }
 
-        val appBalAtSnapshot = if (account != null && latestSnapshot != null) {
-            val txEntities = transactions.map { it.transaction }.filter { it.date <= latestSnapshot.smsDate }
-            val adjEntities = adjustments.filter { it.date <= latestSnapshot.smsDate }
-            com.example.util.BalanceReconciliationEngine.calculateAppBalance(
-                initialBalance = account.initialBalance,
-                accountId = accountId,
-                transactionsUpToDate = txEntities,
-                adjustmentsUpToDate = adjEntities
-            )
-        } else {
-            accountWithBalance?.currentBalance ?: 0L
-        }
+        val currentAppBal = accountWithBalance?.currentBalance ?: account?.initialBalance ?: 0L
 
         val diff = if (latestSnapshot != null) {
             com.example.util.BalanceReconciliationEngine.calculateDiff(
                 bankBalance = latestSnapshot.balance,
-                appBalance = appBalAtSnapshot
+                appBalance = currentAppBal
             )
         } else 0L
 
@@ -100,7 +89,7 @@ class AccountDetailViewModel(
             totalExpense = expenseSum,
             transactionCount = transactions.size,
             latestSnapshot = latestSnapshot,
-            appBalanceAtSnapshot = appBalAtSnapshot,
+            appBalanceAtSnapshot = currentAppBal,
             reconciliationDiff = diff,
             isReconciliationSynced = diff == 0L,
             hasSnapshots = latestSnapshot != null

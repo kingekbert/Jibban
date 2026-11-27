@@ -21,11 +21,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.RemoveCircle
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -42,7 +42,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.draw.clip
@@ -60,6 +63,7 @@ import com.example.ui.components.AccountCard
 import com.example.ui.components.BalanceCard
 import com.example.ui.components.EmptyState
 import com.example.ui.components.TransactionCard
+import com.example.ui.components.rememberAnimatedAmount
 import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
 import com.example.ui.theme.TransferColor
@@ -173,7 +177,7 @@ fun DashboardScreen(
                     ) {
                         QuickAccessItem(
                             title = "ثبت هزینه",
-                            icon = Icons.Default.RemoveCircle,
+                            icon = Icons.AutoMirrored.Filled.TrendingDown,
                             color = ExpenseColor,
                             onClick = { onNavigateToAddTransaction("EXPENSE") },
                             modifier = Modifier
@@ -182,7 +186,7 @@ fun DashboardScreen(
                         )
                         QuickAccessItem(
                             title = "ثبت درآمد",
-                            icon = Icons.Default.AddCircle,
+                            icon = Icons.AutoMirrored.Filled.TrendingUp,
                             color = IncomeColor,
                             onClick = { onNavigateToAddTransaction("INCOME") },
                             modifier = Modifier
@@ -209,7 +213,7 @@ fun DashboardScreen(
                         )
                         QuickAccessItem(
                             title = "ورود پیامک",
-                            icon = Icons.Default.MailOutline,
+                            icon = Icons.Default.ContentPaste,
                             color = Color(0xFFE91E63),
                             onClick = onNavigateToImportSms,
                             modifier = Modifier
@@ -290,7 +294,12 @@ fun DashboardScreen(
             items(recentTransactions, key = { it.transaction.id }) { tx ->
                 TransactionCard(
                     transactionWithDetails = tx,
-                    onClick = { onNavigateToEditTransaction(tx.transaction.id) }
+                    onClick = { onNavigateToEditTransaction(tx.transaction.id) },
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = tween(220),
+                        fadeOutSpec = tween(180),
+                        placementSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                    )
                 )
             }
         }
@@ -305,12 +314,27 @@ fun QuickAccessItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "quickAccessScale"
+    )
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
+            .scale(scale)
             .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick
+            )
             .padding(vertical = 4.dp, horizontal = 2.dp)
     ) {
         Box(
@@ -398,9 +422,10 @@ fun TodaySummaryCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
+                val animatedAmount = rememberAnimatedAmount(targetAmount = amount, durationMillis = 480)
                 Text(
-                    text = AmountFormatter.format(amount),
-                    style = MaterialTheme.typography.titleMedium,
+                    text = AmountFormatter.format(animatedAmount),
+                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                     fontWeight = FontWeight.Bold,
                     color = color,
                     maxLines = 1,

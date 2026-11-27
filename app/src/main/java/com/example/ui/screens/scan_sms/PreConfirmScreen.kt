@@ -404,63 +404,7 @@ fun PreConfirmScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Discrepancy warning badge if SMS balance does not match app balance
-            if (state.balance != null && state.balanceDiff != null && state.balanceDiff != 0L && state.selectedAccountId != null) {
-                item {
-                    val diffVal = kotlin.math.abs(state.balanceDiff!!)
-                    val diffStr = AmountFormatter.format(diffVal)
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigateToReconciliation(state.selectedAccountId!!) },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
-                        ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "مانده با اپ نمی‌خواند ($diffStr)",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                            TextButton(
-                                onClick = { onNavigateToReconciliation(state.selectedAccountId!!) },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "بررسی اختلاف",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 2. Suggested Dong Settlement Card for Income (dynamic, only when open dong matches)
+            // 1. Suggested Dong Settlement Card for Income (dynamic, only when open dong matches)
             if (state.transactionType == TransactionType.INCOME && state.matchedDongs.isNotEmpty()) {
                 item {
                     Card(
@@ -562,7 +506,7 @@ fun PreConfirmScreen(
                                             if (isSelected) {
                                                 Icon(
                                                     imageVector = Icons.Default.Check,
-                                                    contentDescription = "انتخاب شده",
+                                                    contentDescription = "انتخاب‌شده",
                                                     tint = MaterialTheme.colorScheme.primary,
                                                     modifier = Modifier.size(20.dp)
                                                 )

@@ -38,4 +38,12 @@ class SettingsRepository(private val preferences: Preferences) {
     var isSecureScreenEnabled: Boolean
         get() = preferences.isSecureScreenEnabled
         set(value) { preferences.isSecureScreenEnabled = value }
+
+    var isPeriodicSmsScanEnabled: Boolean
+        get() = preferences.isPeriodicSmsScanEnabled
+        set(value) { preferences.isPeriodicSmsScanEnabled = value }
+
+    var periodicSmsScanIntervalHours: Int
+        get() = preferences.periodicSmsScanIntervalHours
+        set(value) { preferences.periodicSmsScanIntervalHours = value }
 }

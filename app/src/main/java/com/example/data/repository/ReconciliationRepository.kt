@@ -39,16 +39,24 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
         database.accountDao().calculateAppBalanceAtDate(accountId, date)
     }
 
+    suspend fun calculateCurrentAppBalance(accountId: Long): Long? = withContext(Dispatchers.IO) {
+        database.accountDao().calculateAppBalanceAtDate(accountId, Long.MAX_VALUE)
+    }
+
     suspend fun recordSnapshot(
         accountId: Long,
         smsDate: Long,
         balance: Long,
         smsHash: String
     ): Long = withContext(Dispatchers.IO) {
-        if (balance <= 0L || smsHash.isBlank()) return@withContext -1L
-        // Avoid duplicate snapshot for same account and smsHash
+        if (balance < 0L || smsHash.isBlank()) return@withContext -1L
         val existing = database.accountBalanceSnapshotDao().getByHash(accountId, smsHash)
         if (existing != null) {
+            if (existing.balance != balance || existing.smsDate != smsDate) {
+                database.accountBalanceSnapshotDao().insert(
+                    existing.copy(balance = balance, smsDate = smsDate)
+                )
+            }
             return@withContext existing.id
         }
         val entity = AccountBalanceSnapshotEntity(
@@ -68,10 +76,10 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
         val snapshotsDesc = database.accountBalanceSnapshotDao().getListByAccountId(accountId)
         val adjustmentsDesc = database.accountBalanceAdjustmentDao().getListByAccountId(accountId)
         val latestSnapshot = snapshotsDesc.firstOrNull()
+        val currentAppBalance = database.accountDao().calculateAppBalanceAtDate(accountId, Long.MAX_VALUE)
+            ?: account.initialBalance
 
         if (latestSnapshot == null) {
-            val currentAppBalance = database.accountDao().calculateAppBalanceAtDate(accountId, System.currentTimeMillis())
-                ?: account.initialBalance
             return@withContext ReconciliationDiagnosis(
                 account = account,
                 latestSnapshot = null,
@@ -85,25 +93,28 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
             )
         }
 
-        // Compute history items and app balances
+        // Compute history items (historical snapshots use balance up to snapshot date, while latest compares with actual current app balance)
         val historyItems = mutableListOf<ReconciliationHistoryItem>()
-        for (snap in snapshotsDesc) {
-            val appBalAtSnap = database.accountDao().calculateAppBalanceAtDate(accountId, snap.smsDate)
-                ?: account.initialBalance
-            val diffAtSnap = BalanceReconciliationEngine.calculateDiff(snap.balance, appBalAtSnap)
+        for ((index, snap) in snapshotsDesc.withIndex()) {
+            val appBalForSnap = if (index == 0) {
+                currentAppBalance
+            } else {
+                database.accountDao().calculateAppBalanceAtDate(accountId, snap.smsDate)
+                    ?: account.initialBalance
+            }
+            val diffAtSnap = BalanceReconciliationEngine.calculateDiff(snap.balance, appBalForSnap)
             historyItems.add(
                 ReconciliationHistoryItem(
                     snapshot = snap,
-                    appBalance = appBalAtSnap,
+                    appBalance = appBalForSnap,
                     diff = diffAtSnap
                 )
             )
         }
 
-        val latestHistory = historyItems.first()
-        val latestAppBalance = latestHistory.appBalance
+        val latestAppBalance = currentAppBalance
         val latestBankBalance = latestSnapshot.balance
-        val latestDiff = latestHistory.diff
+        val latestDiff = BalanceReconciliationEngine.calculateDiff(latestBankBalance, latestAppBalance)
         val isSynced = latestDiff == 0L
 
         // Filter candidate SMS relevant only to this account
@@ -304,7 +315,7 @@ class ReconciliationRepository(private val database: FinTrackDatabase) {
         var inserted = false
         database.withTransaction {
             val account = database.accountDao().getAccountById(accountId) ?: return@withTransaction
-            val currentAppBal = database.accountDao().calculateAppBalanceAtDate(account.id, effectiveDate)
+            val currentAppBal = database.accountDao().calculateAppBalanceAtDate(account.id, Long.MAX_VALUE)
                 ?: account.initialBalance
             val delta = BalanceReconciliationEngine.calculateDiff(
                 bankBalance = targetBankBalance,

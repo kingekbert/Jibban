@@ -154,12 +154,17 @@ fun BalanceCard(
                             )
                         }
                     } else {
+                        val animatedBalance = rememberAnimatedAmount(
+                            targetAmount = totalBalance,
+                            durationMillis = 520,
+                            animateOnFirstAppear = true
+                        )
                         Row(
                             verticalAlignment = Alignment.Bottom,
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = AmountFormatter.format(totalBalance, includeCurrency = false),
+                                text = AmountFormatter.format(animatedBalance, includeCurrency = false),
                                 style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Black,

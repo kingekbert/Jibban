@@ -71,6 +71,7 @@ import com.example.ui.theme.IncomeColor
 import com.example.ui.theme.TransferColor
 import com.example.util.AmountFormatter
 import com.example.util.DateFormatter
+import com.example.util.toPersianDigits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -187,7 +188,7 @@ fun RecurringTransactionsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "${state.dueCount} سررسید شده",
+                                        text = "${state.dueCount} سررسیدشده".toPersianDigits(),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = ExpenseColor,
                                         fontWeight = FontWeight.Bold
@@ -204,7 +205,7 @@ fun RecurringTransactionsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "${state.totalActiveCount} فعال",
+                                text = "${state.totalActiveCount} فعال".toPersianDigits(),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold
@@ -242,23 +243,12 @@ fun RecurringTransactionsScreen(
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        EmptyState(
-                            title = "هیچ موردی ثبت نشده است",
-                            icon = Icons.Default.Repeat
-                        )
-                        Button(
-                            onClick = onNavigateToAdd,
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("ثبت تراکنش دوره‌ای / قسط")
-                        }
-                    }
+                    EmptyState(
+                        title = "هیچ موردی ثبت نشده است",
+                        icon = Icons.Default.Repeat,
+                        buttonText = "ثبت تراکنش دوره‌ای / قسط",
+                        onButtonClick = onNavigateToAdd
+                    )
                 }
             } else {
                 LazyColumn(
@@ -340,7 +330,7 @@ fun RecurringTransactionsScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                     }
-                    Text("تایید و ثبت")
+                    Text("تأیید و ثبت")
                 }
             },
             dismissButton = {
@@ -534,7 +524,7 @@ fun RecurringItemCard(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "پرداخت شده: ${recurring.paidInstallments} از ${recurring.totalInstallments} قسط",
+                            text = "پرداخت‌شده: ${recurring.paidInstallments} از ${recurring.totalInstallments} قسط".toPersianDigits(),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

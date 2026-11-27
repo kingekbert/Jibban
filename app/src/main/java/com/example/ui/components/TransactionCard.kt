@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,10 +30,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -48,12 +58,13 @@ fun TransactionCard(
     transactionWithDetails: TransactionWithDetails,
     onClick: () -> Unit = {},
     onToggleBookmark: (() -> Unit)? = null,
+    showDate: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val tx = transactionWithDetails.transaction
     val (amountColor, amountPrefix, defaultIcon) = when (tx.type) {
         TransactionType.EXPENSE -> Triple(ExpenseColor, "-", transactionWithDetails.categoryIcon ?: "more_horiz")
-        TransactionType.INCOME -> Triple(IncomeColor, "+", transactionWithDetails.categoryIcon ?: "attach_money")
+        TransactionType.INCOME -> Triple(IncomeColor, "+", transactionWithDetails.categoryIcon ?: "payments")
         TransactionType.TRANSFER -> Triple(TransferColor, "", "swap_horiz")
     }
 
@@ -172,28 +183,52 @@ fun TransactionCard(
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = formattedDate,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (onToggleBookmark == null && tx.isBookmarked) {
-                        Icon(
-                            imageVector = Icons.Filled.Bookmark,
-                            contentDescription = "نشانه‌دار",
-                            tint = Color(0xFFF59E0B),
-                            modifier = Modifier.size(15.dp)
-                        )
+                if (showDate || (onToggleBookmark == null && tx.isBookmarked)) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        if (showDate) {
+                            Text(
+                                text = formattedDate,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (onToggleBookmark == null && tx.isBookmarked) {
+                            Icon(
+                                imageVector = Icons.Filled.Bookmark,
+                                contentDescription = "نشانه‌دار",
+                                tint = Color(0xFFF59E0B),
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
                     }
                 }
             }
 
             if (onToggleBookmark != null) {
+                val bookmarkScale = remember { Animatable(1f) }
+                var previousBookmarked by remember { mutableStateOf(tx.isBookmarked) }
+                LaunchedEffect(tx.isBookmarked) {
+                    if (previousBookmarked != tx.isBookmarked) {
+                        previousBookmarked = tx.isBookmarked
+                        bookmarkScale.snapTo(if (tx.isBookmarked) 1.35f else 0.8f)
+                        bookmarkScale.animateTo(
+                            targetValue = 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
+                        )
+                    }
+                }
+                val bookmarkTint by animateColorAsState(
+                    targetValue = if (tx.isBookmarked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                    animationSpec = tween(200),
+                    label = "bookmarkTint"
+                )
                 IconButton(
                     onClick = onToggleBookmark,
                     modifier = Modifier.size(48.dp)
@@ -201,8 +236,10 @@ fun TransactionCard(
                     Icon(
                         imageVector = if (tx.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                         contentDescription = if (tx.isBookmarked) "حذف نشان" else "نشانه‌گذاری",
-                        tint = if (tx.isBookmarked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                        modifier = Modifier.size(20.dp)
+                        tint = bookmarkTint,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .scale(bookmarkScale.value)
                     )
                 }
             }

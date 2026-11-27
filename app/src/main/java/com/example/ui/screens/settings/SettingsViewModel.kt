@@ -10,6 +10,7 @@ import com.example.data.repository.AppLockRepository
 import com.example.data.repository.SettingsRepository
 import com.example.util.Constants
 import com.example.util.DateFormatter
+import com.example.util.toPersianDigits
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,8 @@ data class SettingsUiState(
     val isBiometricEnabled: Boolean = false,
     val isSecureScreenEnabled: Boolean = false,
     val lockGraceMs: Long = Constants.DEFAULT_LOCK_GRACE_MS,
+    val isPeriodicSmsScanEnabled: Boolean = false,
+    val periodicSmsScanIntervalHours: Int = Constants.DEFAULT_PERIODIC_SMS_SCAN_HOURS,
     val isLoading: Boolean = false,
     val userMessage: String? = null,
     val isErrorMessage: Boolean = false,
@@ -54,10 +57,43 @@ class SettingsViewModel(
             lastBackupTimeFormatted = DateFormatter.formatDateTime(settingsRepository.lastBackupTime),
             isBiometricEnabled = appLockRepository.lockEnabled.value,
             isSecureScreenEnabled = appLockRepository.secureScreenEnabled.value,
-            lockGraceMs = appLockRepository.lockGraceMs.value
+            lockGraceMs = appLockRepository.lockGraceMs.value,
+            isPeriodicSmsScanEnabled = settingsRepository.isPeriodicSmsScanEnabled,
+            periodicSmsScanIntervalHours = settingsRepository.periodicSmsScanIntervalHours
         )
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    fun setPeriodicSmsScanEnabled(context: android.content.Context, enabled: Boolean) {
+        settingsRepository.isPeriodicSmsScanEnabled = enabled
+        com.example.util.SmsScanScheduler.syncSchedule(context.applicationContext)
+        _uiState.update {
+            it.copy(
+                isPeriodicSmsScanEnabled = enabled,
+                userMessage = if (enabled) {
+                    "اسکن خودکار هر ${it.periodicSmsScanIntervalHours} ساعت فعال شد".toPersianDigits()
+                } else {
+                    "اسکن خودکار دوره‌ای پیامک غیرفعال شد"
+                },
+                isErrorMessage = false
+            )
+        }
+    }
+
+    fun setPeriodicSmsScanIntervalHours(context: android.content.Context, hours: Int) {
+        val clamped = hours.coerceIn(1, 24)
+        settingsRepository.periodicSmsScanIntervalHours = clamped
+        if (settingsRepository.isPeriodicSmsScanEnabled) {
+            com.example.util.SmsScanScheduler.syncSchedule(context.applicationContext)
+        }
+        _uiState.update {
+            it.copy(
+                periodicSmsScanIntervalHours = clamped,
+                userMessage = "بازه اسکن خودکار روی هر $clamped ساعت تنظیم شد".toPersianDigits(),
+                isErrorMessage = false
+            )
+        }
+    }
 
     fun setBiometricEnabled(enabled: Boolean) {
         appLockRepository.setLockEnabled(enabled)

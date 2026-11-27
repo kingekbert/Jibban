@@ -31,7 +31,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Pattern
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -448,7 +448,7 @@ fun ImportSmsScreen(
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Pattern,
+                                        imageVector = Icons.Default.AutoFixHigh,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )

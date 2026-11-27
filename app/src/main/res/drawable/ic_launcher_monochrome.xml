@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Minimalist wallet + shield monochrome silhouette inside adaptive safe zone -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M36,36 C33.8,36 32,37.8 32,40 L32,64 C32,66.8 34.2,69 37,69 L68,69 C70.2,69 72,67.2 72,65 L72,61 L63,61 C59.7,61 57,58.3 57,55 C57,51.7 59.7,49 63,49 L72,49 L72,43 C72,40.8 70.2,39 68,39 L40,39 L63,33.5 C64.8,33.1 66.5,34.4 66.5,36.2 L66.5,37.5 L70,37.5 L70,35.5 C70,31.5 66.3,28.7 62.4,29.6 L36,36 Z" />
+    <!-- Wallet clasp -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M63,51.5 C61.1,51.5 59.5,53.1 59.5,55 C59.5,56.9 61.1,58.5 63,58.5 L74,58.5 C75.1,58.5 76,57.6 76,56.5 L76,53.5 C76,52.4 75.1,51.5 74,51.5 L63,51.5 Z M63.5,53.6 C64.3,53.6 64.9,54.2 64.9,55 C64.9,55.8 64.3,56.4 63.5,56.4 C62.7,56.4 62.1,55.8 62.1,55 C62.1,54.2 62.7,53.6 63.5,53.6 Z" />
+    <!-- Protective shield base under wallet -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M41.5,72 L46.2,72 C48.4,74.2 51.1,75.8 54,77 C56.9,75.8 59.6,74.2 61.8,72 L66.5,72 C63.4,76.1 58.9,79.2 54,81 C49.1,79.2 44.6,76.1 41.5,72 Z" />
+</vector>

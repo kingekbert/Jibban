@@ -1,9 +1,13 @@
 package com.example.ui.screens.settings
 
+import android.Manifest
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Pattern
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -181,6 +185,24 @@ fun SettingsScreen(
         }
     }
 
+    // Permissions launcher for periodic background SMS scan (READ_SMS + POST_NOTIFICATIONS on Android 13+)
+    val periodicSmsPermissionsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val smsGranted = grants[Manifest.permission.READ_SMS] == true ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
+        val notifGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            grants[Manifest.permission.POST_NOTIFICATIONS] == true ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        } else true
+
+        if (smsGranted && notifGranted) {
+            viewModel.setPeriodicSmsScanEnabled(context, true)
+        } else {
+            showMessage("برای اسکن خودکار و نمایش اعلان، هر دو مجوز پیامک و اعلان لازم است.")
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -232,7 +254,7 @@ fun SettingsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Pattern,
+                                    imageVector = Icons.Default.AutoFixHigh,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
@@ -303,6 +325,37 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+
+            // Periodic Automatic SMS Scan Card
+            item {
+                PeriodicSmsScanCard(
+                    isEnabled = state.isPeriodicSmsScanEnabled,
+                    intervalHours = state.periodicSmsScanIntervalHours,
+                    onToggleEnabled = { targetEnabled ->
+                        if (!targetEnabled) {
+                            viewModel.setPeriodicSmsScanEnabled(context, false)
+                        } else {
+                            val missing = mutableListOf<String>()
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
+                                missing.add(Manifest.permission.READ_SMS)
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                missing.add(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                            if (missing.isEmpty()) {
+                                viewModel.setPeriodicSmsScanEnabled(context, true)
+                            } else {
+                                periodicSmsPermissionsLauncher.launch(missing.toTypedArray())
+                            }
+                        }
+                    },
+                    onSelectIntervalHours = { hours ->
+                        viewModel.setPeriodicSmsScanIntervalHours(context, hours)
+                    }
+                )
             }
 
             // Security & App Lock Card

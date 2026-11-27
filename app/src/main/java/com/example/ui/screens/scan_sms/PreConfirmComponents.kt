@@ -183,7 +183,7 @@ private fun TypeOptionRow(
             if (selected) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "انتخاب شده",
+                    contentDescription = "انتخاب‌شده",
                     tint = accentColor,
                     modifier = Modifier.size(20.dp)
                 )
@@ -276,7 +276,7 @@ internal fun PreConfirmAccountPickerSheet(
                                 if (isSelected) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
-                                        contentDescription = "انتخاب شده",
+                                        contentDescription = "انتخاب‌شده",
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )

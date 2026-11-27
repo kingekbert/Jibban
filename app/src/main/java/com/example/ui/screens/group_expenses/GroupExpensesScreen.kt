@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -89,6 +90,7 @@ import com.example.ui.theme.IncomeColor
 import com.example.util.AmountFormatter
 import com.example.util.DateFormatter
 import com.example.util.NumberToWords
+import com.example.util.toPersianDigits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -164,7 +166,7 @@ fun GroupExpensesScreen(
                     onClick = { viewModel.setSelectedTab(0) },
                     text = {
                         Text(
-                            "صورت‌حساب افراد (${state.personSummaries.size})",
+                            "صورت‌حساب افراد (${state.personSummaries.size})".toPersianDigits(),
                             fontWeight = if (state.selectedTab == 0) FontWeight.Bold else FontWeight.Medium
                         )
                     }
@@ -338,7 +340,7 @@ fun GroupExpensesScreen(
             },
             text = {
                 Text(
-                    text = "آیا از بازگردانی وضعیت دنگ «${share.personName}» به تسویه‌نشده مطمئن هستید؟ در صورتی که تراکنش درآمدی ثبت شده باشد، آن تراکنش حذف خواهد شد.",
+                    text = "آیا از بازگردانی وضعیت دنگ «${share.personName}» به تسویه‌نشده مطمئن هستید؟ در صورتی که تراکنش درآمدی ثبت‌شده باشد، آن تراکنش حذف خواهد شد.",
                     style = MaterialTheme.typography.bodyMedium,
                     lineHeight = 22.sp
                 )
@@ -423,7 +425,7 @@ fun PersonDebtCard(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "${person.openDongsCount} دنگ پرداخت‌نشده",
+                            text = "${person.openDongsCount} دنگ پرداخت‌نشده".toPersianDigits(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -471,8 +473,7 @@ fun PersonDebtCard(
                     }
 
                     IconButton(
-                        onClick = onShareStatement,
-                        modifier = Modifier.size(36.dp)
+                        onClick = onShareStatement
                     ) {
                         Icon(
                             imageVector = Icons.Default.Share,
@@ -485,7 +486,11 @@ fun PersonDebtCard(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { expanded = !expanded }
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { expanded = !expanded }
+                        .padding(horizontal = 4.dp)
                 ) {
                     Text(
                         text = if (expanded) "بستن ریز دنگ‌ها" else "مشاهده ریز دنگ‌ها",
@@ -567,13 +572,12 @@ fun PersonDebtCard(
                                     }
 
                                     IconButton(
-                                        onClick = { onShareSingleDong(dong) },
-                                        modifier = Modifier.size(32.dp)
+                                        onClick = { onShareSingleDong(dong) }
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Share,
                                             contentDescription = "اشتراک",
-                                            modifier = Modifier.size(16.dp),
+                                            modifier = Modifier.size(18.dp),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -1025,7 +1029,7 @@ fun GroupExpenseSummaryHeader(
                     )
                 }
                 Text(
-                    text = "$pendingCount مورد",
+                    text = "$pendingCount مورد".toPersianDigits(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1116,14 +1120,14 @@ fun GroupExpenseCard(
                     )
                     if (allSettled) {
                         Text(
-                            text = "کاملاً تسویه شده ✓",
+                            text = "کاملاً تسویه‌شده ✓",
                             style = MaterialTheme.typography.labelSmall,
                             color = IncomeColor,
                             fontWeight = FontWeight.Bold
                         )
                     } else {
                         Text(
-                            text = "$pendingCount دنگ باز",
+                            text = "$pendingCount دنگ باز".toPersianDigits(),
                             style = MaterialTheme.typography.labelSmall,
                             color = ExpenseColor
                         )
@@ -1171,10 +1175,11 @@ fun GroupExpenseCard(
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
+                                        .heightIn(min = 40.dp)
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(IncomeColor.copy(alpha = 0.12f))
                                         .clickable { onUnsettleShare(share) }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CheckCircle,
@@ -1183,7 +1188,7 @@ fun GroupExpenseCard(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("تسویه شده", fontSize = 12.sp, color = IncomeColor, fontWeight = FontWeight.Bold)
+                                    Text("تسویه‌شده", fontSize = 12.sp, color = IncomeColor, fontWeight = FontWeight.Bold)
                                 }
                             } else {
                                 Button(
@@ -1197,14 +1202,13 @@ fun GroupExpenseCard(
                             }
 
                             IconButton(
-                                onClick = { onShareDong(share) },
-                                modifier = Modifier.size(32.dp)
+                                onClick = { onShareDong(share) }
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Share,
                                     contentDescription = "ارسال دنگ",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }

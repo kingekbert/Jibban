@@ -381,7 +381,7 @@ fun DebtCardItem(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "تسویه شده",
+                                text = "تسویه‌شده",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = IncomeColor,
                                 fontWeight = FontWeight.Bold

@@ -94,6 +94,7 @@ import kotlin.math.abs
 fun ReconciliationScreen(
     viewModel: ReconciliationViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToScanSms: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -184,6 +185,7 @@ fun ReconciliationScreen(
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
                                     color = when {
+                                        state.unregisteredSmsCount > 0 -> MaterialTheme.colorScheme.tertiaryContainer
                                         !hasSnapshot -> MaterialTheme.colorScheme.primaryContainer
                                         state.isSynced -> IncomeColor.copy(alpha = 0.15f)
                                         else -> MaterialTheme.colorScheme.errorContainer
@@ -191,11 +193,13 @@ fun ReconciliationScreen(
                                 ) {
                                     Text(
                                         text = when {
+                                            state.unregisteredSmsCount > 0 -> "در انتظار ثبت پیامک‌ها"
                                             !hasSnapshot -> "تراز دستی"
                                             state.isSynced -> "همخوان با بانک"
                                             else -> "دارای اختلاف"
                                         },
                                         color = when {
+                                            state.unregisteredSmsCount > 0 -> MaterialTheme.colorScheme.onTertiaryContainer
                                             !hasSnapshot -> MaterialTheme.colorScheme.primary
                                             state.isSynced -> IncomeColor
                                             else -> MaterialTheme.colorScheme.error
@@ -216,6 +220,55 @@ fun ReconciliationScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+                    }
+                }
+
+                // Unregistered SMS notice: reconciliation applies cleanly after all account SMS are registered
+                if (state.unregisteredSmsCount > 0) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "${state.unregisteredSmsCount.toPersianDigits()} پیامک بانکی ثبت‌نشده برای این حساب وجود دارد",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                }
+                                Text(
+                                    text = "تطبیق دقیق مانده با آخرین پیامک بانک زمانی اعمال می‌شود که همه پیامک‌های شناسایی‌شده این حساب ثبت شده باشند.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.9f)
+                                )
+                                OutlinedButton(
+                                    onClick = onNavigateToScanSms,
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("رفتن به اسکن پیامک‌ها", fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }

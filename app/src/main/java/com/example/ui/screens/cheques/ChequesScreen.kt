@@ -74,6 +74,7 @@ import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
 import com.example.util.AmountFormatter
 import com.example.util.DateFormatter
+import com.example.util.toPersianDigits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -212,23 +213,12 @@ fun ChequesScreen(
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        EmptyState(
-                            title = "هیچ چکی ثبت نشده است",
-                            icon = Icons.Default.Receipt
-                        )
-                        Button(
-                            onClick = onNavigateToAdd,
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("ثبت چک جدید")
-                        }
-                    }
+                    EmptyState(
+                        title = "هیچ چکی ثبت نشده است",
+                        icon = Icons.Default.Receipt,
+                        buttonText = "ثبت چک جدید",
+                        onButtonClick = onNavigateToAdd
+                    )
                 }
             } else {
                 LazyColumn(
@@ -268,7 +258,7 @@ fun ChequesScreen(
         AlertDialog(
             onDismissRequest = { chequeToDelete = null },
             title = { Text("حذف چک", fontWeight = FontWeight.Bold) },
-            text = { Text("آیا از حذف چک صیادی شماره «${cheque.sayadNumber}» مطمئن هستید؟") },
+            text = { Text("آیا از حذف چک صیادی شماره «${cheque.sayadNumber}» مطمئن هستید؟".toPersianDigits()) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -341,7 +331,7 @@ fun ChequeItemCard(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
-                        text = "صیاد: ${cheque.sayadNumber}",
+                        text = "صیاد: ${cheque.sayadNumber}".toPersianDigits(),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -465,9 +455,9 @@ fun ChequeItemCard(
             ) {
                 val statusText = when (cheque.status) {
                     ChequeStatus.PENDING -> "در انتظار سررسید"
-                    ChequeStatus.CLEARED -> "پاس شده / وصول شده"
-                    ChequeStatus.BOUNCED -> "برگشت خورده ⚠️"
-                    ChequeStatus.CANCELLED -> "باطل شده"
+                    ChequeStatus.CLEARED -> "پاس‌شده / وصول‌شده"
+                    ChequeStatus.BOUNCED -> "برگشت‌خورده ⚠️"
+                    ChequeStatus.CANCELLED -> "باطل‌شده"
                 }
                 val statusColor = when (cheque.status) {
                     ChequeStatus.PENDING -> MaterialTheme.colorScheme.primary
@@ -565,7 +555,7 @@ fun ClearChequeDialog(
                 onClick = { onConfirm(selectedAccountId) },
                 colors = ButtonDefaults.buttonColors(containerColor = IncomeColor)
             ) {
-                Text("تایید و تسویه")
+                Text("تأیید و تسویه")
             }
         },
         dismissButton = {

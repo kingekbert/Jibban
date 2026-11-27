@@ -1,6 +1,11 @@
 package com.example.ui.screens.add_transaction
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -59,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -100,12 +106,31 @@ internal fun TransactionTypeSegmentedSelector(
         ) {
             options.forEach { (type, label, accentColor) ->
                 val isSelected = selectedType == type
+                val pillBg by animateColorAsState(
+                    targetValue = if (isSelected) accentColor else Color.Transparent,
+                    animationSpec = tween(220),
+                    label = "pillBg_${type.name}"
+                )
+                val pillTextColor by animateColorAsState(
+                    targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    animationSpec = tween(220),
+                    label = "pillText_${type.name}"
+                )
+                val pillScale by animateFloatAsState(
+                    targetValue = if (isSelected) 1.0f else 0.96f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "pillScale_${type.name}"
+                )
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(40.dp)
+                        .scale(pillScale)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) accentColor else Color.Transparent)
+                        .background(pillBg)
                         .clickable { onTypeSelected(type) }
                         .testTag("tx_type_${type.name.lowercase()}"),
                     contentAlignment = Alignment.Center
@@ -114,7 +139,7 @@ internal fun TransactionTypeSegmentedSelector(
                         text = label,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = pillTextColor
                     )
                 }
             }
@@ -202,7 +227,7 @@ internal fun QuickAccountSelector(
                             if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
-                                    contentDescription = "انتخاب شده",
+                                    contentDescription = "انتخاب‌شده",
                                     modifier = Modifier.size(16.dp)
                                 )
                             } else {

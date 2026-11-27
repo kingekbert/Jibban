@@ -29,7 +29,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Pattern
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -64,6 +64,7 @@ import com.example.data.local.entity.AccountType
 import com.example.data.local.relation.AccountWithBalance
 import com.example.util.AmountFormatter
 import com.example.util.BankLogoBadge
+import com.example.util.toPersianDigits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -225,10 +226,11 @@ fun AccountListItem(
     val cardColor = Color(account.color)
     var showMenu by remember { mutableStateOf(false) }
 
-    val typeLabel = when (account.type) {
-        AccountType.CASH -> "کیف پول / نقدی"
-        AccountType.BANK -> "حساب بانکی"
-        AccountType.CREDIT_CARD -> "کارت اعتباری"
+    val subtitleText = when {
+        !account.cardNumber.isNullOrBlank() && account.cardNumber.length >= 4 ->
+            "کارت ****${account.cardNumber.takeLast(4).toPersianDigits()}"
+        !account.shabaNumber.isNullOrBlank() -> "شماره شبا ثبت شده"
+        else -> null
     }
 
     Card(
@@ -282,7 +284,6 @@ fun AccountListItem(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
-                                .clickable { onPatternClick() }
                                 .padding(horizontal = 4.dp, vertical = 1.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -295,14 +296,16 @@ fun AccountListItem(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = typeLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                if (subtitleText != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitleText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             Column(
@@ -316,7 +319,7 @@ fun AccountListItem(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "${accountWithBalance.transactionCount} تراکنش",
+                    text = "${accountWithBalance.transactionCount} تراکنش".toPersianDigits(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -364,7 +367,7 @@ fun AccountListItem(
                         )
                         DropdownMenuItem(
                             text = { Text("الگوی پیامک") },
-                            leadingIcon = { Icon(Icons.Default.Pattern, contentDescription = "الگوی پیامک") },
+                            leadingIcon = { Icon(Icons.Default.AutoFixHigh, contentDescription = "الگوی پیامک") },
                             onClick = {
                                 showMenu = false
                                 onPatternClick()

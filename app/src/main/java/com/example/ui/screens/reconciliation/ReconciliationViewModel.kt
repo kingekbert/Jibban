@@ -35,6 +35,7 @@ data class ReconciliationUiState(
     val history: List<ReconciliationHistoryItem> = emptyList(),
     val adjustments: List<AccountBalanceAdjustmentEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
+    val unregisteredSmsCount: Int = 0,
     val userMessage: String? = null,
     val isSuccessMessage: Boolean = true
 )
@@ -60,9 +61,38 @@ class ReconciliationViewModel(
             try {
                 val account = accountRepository.getAccountById(accountId).first()
                 val categories = try { categoryRepository.allCategories.first() } catch (e: Exception) { emptyList() }
-                val candidates = try { WidgetDataStore.getItems(appContext) } catch (e: Exception) { emptyList() }
+                val widgetCandidates = try { WidgetDataStore.getItems(appContext) } catch (e: Exception) { emptyList() }
 
-                val diag = reconciliationRepository.getReconciliationDiagnosis(accountId, candidates)
+                // Inspect recent SMS inbox for this account to detect unregistered SMS & sync latest bank balance
+                val smsInspection = runCatching {
+                    com.example.util.BackgroundSmsScanner.inspectAccountSms(
+                        context = appContext,
+                        accountId = accountId,
+                        days = 30
+                    )
+                }.getOrNull()
+
+                val unregisteredCount = smsInspection?.unregisteredCount ?: 0
+
+                // Only update latest snapshot from bank SMS when all recognized SMS of this account are registered
+                if (unregisteredCount == 0 &&
+                    smsInspection?.latestBalance != null &&
+                    smsInspection.latestSmsHash.isNotBlank()
+                ) {
+                    runCatching {
+                        reconciliationRepository.recordSnapshot(
+                            accountId = accountId,
+                            smsDate = smsInspection.latestSmsDate,
+                            balance = smsInspection.latestBalance,
+                            smsHash = smsInspection.latestSmsHash
+                        )
+                    }
+                }
+
+                val mergedCandidates = (widgetCandidates + (smsInspection?.unregisteredItems ?: emptyList()))
+                    .distinctBy { it.smsHash }
+
+                val diag = reconciliationRepository.getReconciliationDiagnosis(accountId, mergedCandidates)
                 if (diag != null) {
                     _uiState.update {
                         it.copy(
@@ -76,7 +106,8 @@ class ReconciliationViewModel(
                             cause = diag.cause,
                             history = diag.history,
                             adjustments = diag.adjustments,
-                            categories = categories
+                            categories = categories,
+                            unregisteredSmsCount = unregisteredCount
                         )
                     }
                 } else {
@@ -84,7 +115,8 @@ class ReconciliationViewModel(
                         it.copy(
                             isLoading = false,
                             account = account,
-                            categories = categories
+                            categories = categories,
+                            unregisteredSmsCount = unregisteredCount
                         )
                     }
                 }

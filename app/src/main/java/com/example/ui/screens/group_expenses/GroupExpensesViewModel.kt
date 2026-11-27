@@ -450,7 +450,7 @@ class GroupExpensesViewModel(
         val totalAmountStr = AmountFormatter.formatAmountWithCurrency(expense.transaction?.amount ?: 0L)
 
         val sharesList = expense.shares.joinToString("\n") {
-            val status = if (it.isSettled) " (تسویه شده ✓)" else ""
+            val status = if (it.isSettled) " (تسویه‌شده ✓)" else ""
             "- ${it.personName}: ${AmountFormatter.formatAmountWithCurrency(it.amount)}$status"
         }
 

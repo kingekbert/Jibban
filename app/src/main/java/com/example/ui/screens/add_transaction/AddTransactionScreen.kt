@@ -1,7 +1,15 @@
 package com.example.ui.screens.add_transaction
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -24,8 +32,12 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -77,12 +89,18 @@ fun AddTransactionScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showAllCategories by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
 
-    val activeColor = when (state.type) {
+    val targetActiveColor = when (state.type) {
         TransactionType.EXPENSE -> ExpenseColor
         TransactionType.INCOME -> IncomeColor
         TransactionType.TRANSFER -> TransferColor
     }
+    val activeColor by animateColorAsState(
+        targetValue = targetActiveColor,
+        animationSpec = tween(240),
+        label = "addTxActiveColor"
+    )
 
     if (showDatePicker) {
         JalaliDatePickerDialog(
@@ -129,6 +147,59 @@ fun AddTransactionScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "بازگشت"
                         )
+                    }
+                },
+                actions = {
+                    if (state.type == TransactionType.EXPENSE) {
+                        Box {
+                            IconButton(
+                                onClick = { showOverflowMenu = true },
+                                modifier = Modifier.testTag("add_transaction_more_menu")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "گزینه‌های بیشتر"
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            if (state.isGroupExpenseEnabled) "لغو هزینه مشترک (دنگ)"
+                                            else "ثبت به عنوان هزینه مشترک (دنگ)"
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Groups,
+                                            contentDescription = null,
+                                            tint = if (state.isGroupExpenseEnabled) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            }
+                                        )
+                                    },
+                                    trailingIcon = if (state.isGroupExpenseEnabled) {
+                                        {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "فعال",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    } else null,
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        viewModel.setGroupExpenseEnabled(!state.isGroupExpenseEnabled)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             )
@@ -341,7 +412,11 @@ fun AddTransactionScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            if (state.type == TransactionType.EXPENSE) {
+            AnimatedVisibility(
+                visible = state.type == TransactionType.EXPENSE && state.isGroupExpenseEnabled,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 GroupExpenseSection(
                     state = state,
                     onToggleEnabled = { viewModel.setGroupExpenseEnabled(it) },

@@ -91,7 +91,7 @@ fun JalaliDateRangePickerDialog(
                     onDismiss()
                 }
             ) {
-                Text("تایید", fontWeight = FontWeight.Bold)
+                Text("تأیید", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

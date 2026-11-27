@@ -59,6 +59,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import com.example.data.local.entity.CategoryType
 import com.example.ui.components.AppColorPalette
@@ -67,6 +71,7 @@ import com.example.ui.components.PersianAmountVisualTransformation
 import com.example.ui.components.getCategoryIcon
 import com.example.util.AmountFormatter
 import com.example.util.NumberToWords
+import com.example.util.toPersianDigits
 
 val CategoryIconsList = AppIconsList
 val CategoryColorPalette = AppColorPalette
@@ -319,32 +324,43 @@ fun AddCategoryScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                CategoryColorPalette.forEach { color ->
+                CategoryColorPalette.forEachIndexed { idx, color ->
                     val colorArgb = color.toArgb()
                     val isSelected = state.color == colorArgb
 
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
-                            .background(color)
-                            .border(
-                                width = if (isSelected) 3.dp else 0.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                                shape = CircleShape
-                            )
-                            .clickable { viewModel.setColor(colorArgb) },
+                            .semantics {
+                                contentDescription = "رنگ ${(idx + 1).toPersianDigits()}"
+                                selected = isSelected
+                            }
+                            .clickable(role = Role.RadioButton) { viewModel.setColor(colorArgb) },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "انتخاب‌شده",
-                                tint = if (color.luminance() > 0.55f) Color.Black else Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .border(
+                                    width = if (isSelected) 3.dp else 0.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "انتخاب‌شده",
+                                    tint = if (color.luminance() > 0.55f) Color.Black else Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }

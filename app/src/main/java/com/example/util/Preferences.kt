@@ -59,4 +59,24 @@ class Preferences(private val context: Context) {
     var lastBackgroundAt: Long
         get() = prefs.getLong(Constants.KEY_LAST_BACKGROUND_AT, 0L)
         set(value) = prefs.edit().putLong(Constants.KEY_LAST_BACKGROUND_AT, value).apply()
+
+    var isPeriodicSmsScanEnabled: Boolean
+        get() = prefs.getBoolean(Constants.KEY_PERIODIC_SMS_SCAN_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(Constants.KEY_PERIODIC_SMS_SCAN_ENABLED, value).apply()
+
+    var periodicSmsScanIntervalHours: Int
+        get() = prefs.getInt(
+            Constants.KEY_PERIODIC_SMS_SCAN_INTERVAL_HOURS,
+            Constants.DEFAULT_PERIODIC_SMS_SCAN_HOURS
+        ).coerceIn(1, 24)
+        set(value) = prefs.edit()
+            .putInt(Constants.KEY_PERIODIC_SMS_SCAN_INTERVAL_HOURS, value.coerceIn(1, 24))
+            .apply()
+
+    var notifiedSmsHashes: Set<String>
+        get() = prefs.getStringSet(Constants.KEY_NOTIFIED_SMS_HASHES, emptySet())?.toSet() ?: emptySet()
+        set(value) {
+            val trimmed = if (value.size > 200) value.toList().takeLast(200).toSet() else value
+            prefs.edit().putStringSet(Constants.KEY_NOTIFIED_SMS_HASHES, trimmed).apply()
+        }
 }

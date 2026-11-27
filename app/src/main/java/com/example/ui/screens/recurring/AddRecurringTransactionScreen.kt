@@ -345,7 +345,7 @@ fun AddRecurringTransactionScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "پس از پرداخت تعداد مشخص شده اقساط، به صورت خودکار پایان می‌یابد",
+                                text = "پس از پرداخت تعداد مشخص‌شده اقساط، به‌صورت خودکار پایان می‌یابد",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

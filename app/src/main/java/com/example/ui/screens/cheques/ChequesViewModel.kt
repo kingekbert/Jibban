@@ -22,7 +22,7 @@ enum class ChequeFilterTab(val title: String) {
     RECEIVABLE("دریافتی"),
     PAYABLE("پرداختی"),
     PENDING("در انتظار"),
-    CLEARED("پاس شده")
+    CLEARED("پاس‌شده")
 }
 
 data class ChequesUiState(

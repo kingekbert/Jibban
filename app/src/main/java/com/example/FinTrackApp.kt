@@ -18,6 +18,8 @@ class FinTrackApp : Application() {
     override fun onCreate() {
         super.onCreate()
         appModule = AppModule(this)
+        com.example.util.SmsScanNotificationHelper.ensureChannel(this)
+        com.example.util.SmsScanScheduler.syncSchedule(this)
 
         // Observe whole-process foreground/background lifecycle for App Lock
         ProcessLifecycleOwner.get().lifecycle.addObserver(

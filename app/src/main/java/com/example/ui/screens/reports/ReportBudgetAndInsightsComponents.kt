@@ -53,6 +53,7 @@ import com.example.data.local.entity.CategoryEntity
 import com.example.data.local.entity.CategoryType
 import com.example.ui.components.PersianAmountVisualTransformation
 import com.example.ui.components.getCategoryIcon
+import com.example.ui.components.rememberAnimatedProgress
 import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
 import com.example.util.AmountFormatter
@@ -313,8 +314,9 @@ fun CategoryBudgetSection(
                             )
                         }
 
+                        val animatedBudgetProgress = rememberAnimatedProgress(progressFraction)
                         LinearProgressIndicator(
-                            progress = { progressFraction },
+                            progress = { animatedBudgetProgress },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)

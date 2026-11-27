@@ -45,15 +45,18 @@ import com.example.util.toPersianDigits
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Pattern
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -64,6 +67,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import com.example.ui.components.rememberAnimatedAmount
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -167,9 +171,13 @@ fun AccountDetailScreen(
                                 color = Color.White.copy(alpha = 0.85f)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
+                            val animatedBalance = rememberAnimatedAmount(
+                                targetAmount = accountWithBalance.currentBalance,
+                                durationMillis = 520
+                            )
                             Text(
-                                text = AmountFormatter.format(accountWithBalance.currentBalance),
-                                style = MaterialTheme.typography.displayLarge,
+                                text = AmountFormatter.format(animatedBalance),
+                                style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -271,19 +279,21 @@ fun AccountDetailScreen(
 
                 // Stats Cards (Income, Expense, Count)
                 item {
+                    val animatedIncome = rememberAnimatedAmount(targetAmount = state.totalIncome, durationMillis = 480)
+                    val animatedExpense = rememberAnimatedAmount(targetAmount = state.totalExpense, durationMillis = 480)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         StatBox(
                             title = "ورودی کل",
-                            amountStr = AmountFormatter.format(state.totalIncome),
+                            amountStr = AmountFormatter.format(animatedIncome),
                             color = IncomeColor,
                             modifier = Modifier.weight(1f)
                         )
                         StatBox(
                             title = "خروجی کل",
-                            amountStr = AmountFormatter.format(state.totalExpense),
+                            amountStr = AmountFormatter.format(animatedExpense),
                             color = ExpenseColor,
                             modifier = Modifier.weight(1f)
                         )
@@ -459,7 +469,7 @@ fun AccountDetailScreen(
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Pattern,
+                                            imageVector = Icons.Default.AutoFixHigh,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
@@ -502,7 +512,7 @@ fun AccountDetailScreen(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Pattern,
+                                                imageVector = Icons.Default.AutoFixHigh,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(16.dp)
@@ -567,7 +577,12 @@ fun AccountDetailScreen(
                     items(state.transactions, key = { it.transaction.id }) { tx ->
                         TransactionCard(
                             transactionWithDetails = tx,
-                            onClick = { onNavigateToEditTransaction(tx.transaction.id) }
+                            onClick = { onNavigateToEditTransaction(tx.transaction.id) },
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = tween(220),
+                                fadeOutSpec = tween(180),
+                                placementSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                            )
                         )
                     }
                 }

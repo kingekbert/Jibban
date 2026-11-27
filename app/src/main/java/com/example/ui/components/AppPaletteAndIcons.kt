@@ -3,7 +3,6 @@ package com.example.ui.components
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.CameraAlt
@@ -11,6 +10,7 @@ import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.DryCleaning
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -21,22 +21,23 @@ import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocalGroceryStore
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.LocalParking
-import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.PhoneIphone
-import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.Work
@@ -81,8 +82,13 @@ val AppIconsList = listOf(
     "local_grocery_store",
     "account_balance_wallet",
     "store",
-    "attach_money",
-    "credit_card"
+    "payments",
+    "savings",
+    "credit_card",
+    "account_balance",
+    "medication",
+    "volunteer_activism",
+    "devices"
 )
 
 val AppColorPalette = listOf(
@@ -135,7 +141,7 @@ val IranianBankIcons = listOf(
     BankIconInfo("parsian", "بانک پارسیان", "پارسیان"),
     BankIconInfo("sarmaye", "بانک سرمایه", "سرمایه"),
     BankIconInfo("karafarin", "بانک کارآفرین", "کارآفرین"),
-    BankIconInfo("CASH", "نقدی", "CASH"),
+    BankIconInfo("CASH", "نقدی", "نقد"),
     BankIconInfo("wallet", "کیف پول", "کیف‌پول"),
     BankIconInfo("credit_card", "کارت اعتباری", "کارت")
 )
@@ -152,7 +158,7 @@ fun AccountIconDisplay(
     modifier: Modifier = Modifier
 ) {
     val bankLabel = getBankShortLabel(iconName)
-    if (bankLabel != null && bankLabel != "CASH" && bankLabel != "کیف‌پول" && bankLabel != "کارت") {
+    if (bankLabel != null && bankLabel != "نقد" && bankLabel != "CASH" && bankLabel != "کیف‌پول" && bankLabel != "کارت") {
         androidx.compose.material3.Text(
             text = bankLabel,
             fontSize = fontSize,
@@ -204,10 +210,13 @@ fun getAppIcon(name: String?): ImageVector {
         "local_grocery_store" -> Icons.Default.LocalGroceryStore
         "account_balance_wallet", "wallet" -> Icons.Default.AccountBalanceWallet
         "store" -> Icons.Default.Store
-        "attach_money" -> Icons.Default.AttachMoney
+        "attach_money", "savings" -> Icons.Default.Savings
         "credit_card" -> Icons.Default.CreditCard
         "CASH", "payments" -> Icons.Default.Payments
         "account_balance" -> Icons.Default.AccountBalance
+        "medication" -> Icons.Default.Medication
+        "volunteer_activism" -> Icons.Default.VolunteerActivism
+        "devices" -> Icons.Default.Devices
         else -> Icons.Default.MoreHoriz
     }
 }

@@ -16,8 +16,12 @@ object Constants {
     const val KEY_SECURE_SCREEN_ENABLED = "key_secure_screen_enabled"
     const val KEY_LOCK_GRACE_MS = "key_lock_grace_ms"
     const val KEY_LAST_BACKGROUND_AT = "key_last_background_at"
+    const val KEY_PERIODIC_SMS_SCAN_ENABLED = "key_periodic_sms_scan_enabled"
+    const val KEY_PERIODIC_SMS_SCAN_INTERVAL_HOURS = "key_periodic_sms_scan_interval_hours"
+    const val KEY_NOTIFIED_SMS_HASHES = "key_notified_sms_hashes"
 
     // Default Values
     const val DEFAULT_ACCOUNT_ID = 1L
     const val DEFAULT_LOCK_GRACE_MS = 30_000L
+    const val DEFAULT_PERIODIC_SMS_SCAN_HOURS = 2
 }

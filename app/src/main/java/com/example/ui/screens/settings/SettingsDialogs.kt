@@ -200,7 +200,7 @@ internal fun ExportBackupOptionsDialog(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "رمزگذاری شده با کلید امن Keystore. مخصوص استفاده روزمره روی همین دستگاه.",
+                            text = "رمزگذاری‌شده با کلید امن Keystore. مخصوص استفاده روزمره روی همین دستگاه.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -326,7 +326,7 @@ internal fun PlainBackupExportActionsDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("💾 ذخیره به صورت فایل (.json)")
+                    Text("💾 ذخیره به‌صورت فایل (.json)")
                 }
 
                 OutlinedButton(

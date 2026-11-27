@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
@@ -294,7 +295,7 @@ fun AboutAppCard() {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "اپلیکیشن هوشمند مدیریت مالی شخصی جیب‌بان، حساب‌ها و تراکنش‌ها به صورت ۱۰۰٪ آفلاین و امن روی دستگاه شما.",
+                    text = "اپلیکیشن هوشمند مدیریت مالی شخصی جیب‌بان، حساب‌ها و تراکنش‌ها به‌صورت ۱۰۰٪ آفلاین و امن روی دستگاه شما.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -438,6 +439,105 @@ fun SecuritySettingsCard(
                     enabled = !isLockEnabled,
                     modifier = Modifier.testTag("secure_screen_switch")
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun PeriodicSmsScanCard(
+    isEnabled: Boolean,
+    intervalHours: Int,
+    onToggleEnabled: (Boolean) -> Unit,
+    onSelectIntervalHours: (Int) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("periodic_sms_scan_card"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsActive,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "اسکن خودکار دوره‌ای پیامک",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isEnabled) {
+                                "بررسی هر $intervalHours ساعت و ارسال اعلان برای تراکنش جدید".toPersianDigits()
+                            } else {
+                                "اعلان خودکار هنگام دریافت پیامک بانکی جدید"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Switch(
+                    checked = isEnabled,
+                    onCheckedChange = onToggleEnabled,
+                    modifier = Modifier.testTag("periodic_sms_scan_switch")
+                )
+            }
+
+            if (isEnabled) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "بازه زمانی بررسی خودکار:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    val intervalOptions = listOf(1, 2, 4, 6, 12, 24)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        intervalOptions.forEach { hours ->
+                            FilterChip(
+                                selected = intervalHours == hours,
+                                onClick = { onSelectIntervalHours(hours) },
+                                label = { Text("هر $hours ساعت".toPersianDigits()) },
+                                modifier = Modifier.testTag("periodic_sms_interval_$hours")
+                            )
+                        }
+                    }
+                }
             }
         }
     }

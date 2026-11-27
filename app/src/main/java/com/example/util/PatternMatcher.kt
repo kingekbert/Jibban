@@ -197,6 +197,13 @@ object PatternMatcher {
                 )
 
                 if (timestamp != null) {
+                    val textBalance = extractBalanceFromText(smsText)
+                    val finalBalance = when {
+                        balance == null -> textBalance
+                        // Guard against token-shift bug where balance accidentally grabbed the transaction amount
+                        textBalance != null && balance == amount && textBalance != amount -> textBalance
+                        else -> balance
+                    }
                     return ParsedSms(
                         bankName = bankName ?: pattern.bankName ?: "بانک",
                         transactionType = txType,
@@ -204,12 +211,44 @@ object PatternMatcher {
                         date = timestamp,
                         accountIdentifier = accountIdent ?: pattern.accountIdentifier.ifBlank { null },
                         rawDescription = description ?: (if (txType == TransactionType.INCOME) "واریز" else "برداشت"),
-                        balance = balance
+                        balance = finalBalance
                     )
                 }
             }
         }
 
+        return null
+    }
+
+    private val BALANCE_LABEL_REGEX = Regex(
+        """(?:(?:مانده|موجودی)(?!\s*قبلی)(?:\s*(?:حساب|فعلی|کل|قابل\s*برداشت|جدید|نهایی|پس\s*از\s*تراکنش))?|باقی\s*مانده|باقیمانده)\s*[:=\-ـ]?\s*(?:\r?\n\s*)?([0-9][0-9,،.]*)(?![/:])\s*(تومان|تومن|ریال|ريال|Rial|IRR)?""",
+        RegexOption.IGNORE_CASE
+    )
+
+    /**
+     * Extracts the bank account remaining balance (in Rials) directly from Persian bank SMS text.
+     * Supports labels such as "مانده:", "موجودی فعلی:", "مانده قابل برداشت:", multiline balances,
+     * Persian/Arabic/English digits, thousand separators, and automatic Toman-to-Rial conversion.
+     */
+    fun extractBalanceFromText(smsText: String): Long? {
+        if (smsText.isBlank()) return null
+        val normalized = convertToEnglish(smsText)
+            .replace('ي', 'ی')
+            .replace('ك', 'ک')
+            .replace('\u200C', ' ')
+
+        val matches = BALANCE_LABEL_REGEX.findAll(normalized).toList()
+        for (match in matches.asReversed()) {
+            val rawNum = match.groupValues[1]
+                .replace(",", "")
+                .replace("،", "")
+                .replace(".", "")
+            val parsed = rawNum.toLongOrNull() ?: continue
+            if (parsed < 0L || parsed > 100_000_000_000_000L) continue
+            val unit = match.groupValues.getOrNull(2).orEmpty().trim()
+            val isToman = unit.contains("تومان") || unit.contains("تومن")
+            return if (isToman) parsed * 10L else parsed
+        }
         return null
     }
 

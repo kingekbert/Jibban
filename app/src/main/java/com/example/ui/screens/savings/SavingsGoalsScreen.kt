@@ -1,6 +1,9 @@
 package com.example.ui.screens.savings
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -64,10 +68,13 @@ import com.example.data.local.entity.SavingsEntryType
 import com.example.data.local.entity.SavingsGoalEntity
 import com.example.data.local.relation.SavingsGoalWithDetails
 import com.example.ui.components.EmptyState
+import com.example.ui.components.rememberAnimatedAmount
+import com.example.ui.components.rememberAnimatedProgress
 import com.example.ui.theme.ExpenseColor
 import com.example.ui.theme.IncomeColor
 import com.example.util.AmountFormatter
 import com.example.util.DateFormatter
+import com.example.util.toPersianDigits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -170,9 +177,10 @@ fun SavingsGoalsScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
+                                    val animatedSaved = rememberAnimatedAmount(targetAmount = state.totalCurrentSaved, durationMillis = 520)
                                     Text(
-                                        text = AmountFormatter.format(state.totalCurrentSaved),
-                                        style = MaterialTheme.typography.titleLarge,
+                                        text = AmountFormatter.format(animatedSaved),
+                                        style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -195,8 +203,9 @@ fun SavingsGoalsScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
+                            val animatedOverallProgress = rememberAnimatedProgress(state.overallProgress)
                             LinearProgressIndicator(
-                                progress = { state.overallProgress },
+                                progress = { animatedOverallProgress },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(8.dp)
@@ -212,13 +221,13 @@ fun SavingsGoalsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "${(state.overallProgress * 100).toInt()}% از کل مسیر طی شده",
+                                    text = "${(state.overallProgress * 100).toInt()}٪ از کل مسیر طی شده".toPersianDigits(),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "${state.activeCount} فعال • ${state.completedCount} محقق‌شده",
+                                    text = "${state.activeCount} فعال • ${state.completedCount} محقق‌شده".toPersianDigits(),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -233,7 +242,12 @@ fun SavingsGoalsScreen(
                         onEdit = { onNavigateToEdit(item.goal.id) },
                         onDeposit = { activeGoalForAction = Pair(item, GoalActionType.DEPOSIT) },
                         onWithdraw = { activeGoalForAction = Pair(item, GoalActionType.WITHDRAW) },
-                        onDelete = { goalToDelete = item.goal }
+                        onDelete = { goalToDelete = item.goal },
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = tween(220),
+                            fadeOutSpec = tween(180),
+                            placementSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                        )
                     )
                 }
             }
@@ -395,7 +409,7 @@ fun SavingsGoalCard(
             ) {
                 Column {
                     Text(
-                        text = "پس‌انداز شده:",
+                        text = "پس‌اندازشده:",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -423,9 +437,10 @@ fun SavingsGoalCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Progress bar
+            // Animated Progress bar
+            val animatedGoalProgress = rememberAnimatedProgress(progress)
             LinearProgressIndicator(
-                progress = { progress },
+                progress = { animatedGoalProgress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
@@ -451,7 +466,7 @@ fun SavingsGoalCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "تبریک! این هدف محقق شده است 🎉",
+                            text = "تبریک! این هدف محقق‌شده است 🎉",
                             style = MaterialTheme.typography.labelSmall,
                             color = IncomeColor,
                             fontWeight = FontWeight.Bold
@@ -466,7 +481,7 @@ fun SavingsGoalCard(
                 }
 
                 Text(
-                    text = "${(progress * 100).toInt()}%",
+                    text = "${(progress * 100).toInt()}٪".toPersianDigits(),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = if (isCompleted) IncomeColor else accentColor
@@ -508,8 +523,10 @@ fun SavingsGoalCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .clickable { showHistory = !showHistory }
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -521,7 +538,7 @@ fun SavingsGoalCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (showHistory) "بستن تاریخچه واریز و برداشت" else "مشاهده تاریخچه واریز و برداشت (${item.entries.size})",
+                        text = if (showHistory) "بستن تاریخچه واریز و برداشت" else "مشاهده تاریخچه واریز و برداشت (${item.entries.size})".toPersianDigits(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold

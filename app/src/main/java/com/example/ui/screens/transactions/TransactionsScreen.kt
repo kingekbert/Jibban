@@ -2,6 +2,9 @@ package com.example.ui.screens.transactions
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -564,6 +567,11 @@ fun TransactionsScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .animateItem(
+                                            fadeInSpec = tween(200),
+                                            fadeOutSpec = tween(160),
+                                            placementSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                        )
                                         .padding(
                                             top = if (state.isFullscreen) (4.dp / state.zoomLevel).coerceIn(1.dp, 8.dp) else 8.dp,
                                             bottom = if (state.isFullscreen) (2.dp / state.zoomLevel).coerceIn(1.dp, 4.dp) else 4.dp
@@ -635,6 +643,11 @@ fun TransactionsScreen(
 
                                 SwipeToDismissBox(
                                     state = dismissState,
+                                    modifier = Modifier.animateItem(
+                                        fadeInSpec = tween(220),
+                                        fadeOutSpec = tween(180),
+                                        placementSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                    ),
                                     enableDismissFromStartToEnd = true,
                                     enableDismissFromEndToStart = true,
                                     backgroundContent = {
@@ -721,7 +734,8 @@ fun TransactionsScreen(
                                             TransactionCard(
                                                 transactionWithDetails = item,
                                                 onClick = { onNavigateToEditTransaction(item.transaction.id) },
-                                                onToggleBookmark = { viewModel.toggleBookmark(item.transaction) }
+                                                onToggleBookmark = { viewModel.toggleBookmark(item.transaction) },
+                                                showDate = false
                                             )
                                         }
                                     }
@@ -793,7 +807,7 @@ private fun CompactTransactionCard(
     val tx = transactionWithDetails.transaction
     val (amountColor, amountPrefix, defaultIcon) = when (tx.type) {
         TransactionType.EXPENSE -> Triple(ExpenseColor, "-", transactionWithDetails.categoryIcon ?: "more_horiz")
-        TransactionType.INCOME -> Triple(IncomeColor, "+", transactionWithDetails.categoryIcon ?: "attach_money")
+        TransactionType.INCOME -> Triple(IncomeColor, "+", transactionWithDetails.categoryIcon ?: "payments")
         TransactionType.TRANSFER -> Triple(TransferColor, "", "swap_horiz")
     }
 
@@ -872,42 +886,35 @@ private fun CompactTransactionCard(
                 )
             }
 
-            Column(horizontalAlignment = Alignment.End) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
                     text = "$amountPrefix ${AmountFormatter.format(tx.amount)}",
                     fontSize = amountFontSize,
                     fontWeight = FontWeight.Bold,
                     color = amountColor
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = DateFormatter.formatShort(tx.date),
-                        fontSize = subFontSize,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (onToggleBookmark != null) {
-                        IconButton(
-                            onClick = onToggleBookmark,
-                            modifier = Modifier.size((20 * zoomLevel).coerceIn(20f, 32f).dp)
-                        ) {
-                            Icon(
-                                imageVector = if (tx.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = if (tx.isBookmarked) "حذف نشان" else "نشانه‌گذاری",
-                                tint = if (tx.isBookmarked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                                modifier = Modifier.size((15 * zoomLevel).coerceIn(15f, 22f).dp)
-                            )
-                        }
-                    } else if (tx.isBookmarked) {
+                if (onToggleBookmark != null) {
+                    IconButton(
+                        onClick = onToggleBookmark,
+                        modifier = Modifier.size((24 * zoomLevel).coerceIn(22f, 36f).dp)
+                    ) {
                         Icon(
-                            imageVector = Icons.Filled.Bookmark,
-                            contentDescription = "نشانه‌دار",
-                            tint = Color(0xFFF59E0B),
-                            modifier = Modifier.size((14 * zoomLevel).coerceIn(14f, 20f).dp)
+                            imageVector = if (tx.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            contentDescription = if (tx.isBookmarked) "حذف نشان" else "نشانه‌گذاری",
+                            tint = if (tx.isBookmarked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                            modifier = Modifier.size((15 * zoomLevel).coerceIn(15f, 22f).dp)
                         )
                     }
+                } else if (tx.isBookmarked) {
+                    Icon(
+                        imageVector = Icons.Filled.Bookmark,
+                        contentDescription = "نشانه‌دار",
+                        tint = Color(0xFFF59E0B),
+                        modifier = Modifier.size((14 * zoomLevel).coerceIn(14f, 20f).dp)
+                    )
                 }
             }
         }
